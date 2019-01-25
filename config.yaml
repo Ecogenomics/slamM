@@ -1,1 +1,8 @@
-empty
+long_reads:
+   /home/mjsull/curr_projects/nanopore_pipeline/reads/zymo.0.1.fastq.gz
+workdir:
+    /home/mjsull/testsnake
+reference_filter:
+    none
+max_threads:
+    24
