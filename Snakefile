@@ -1,9 +1,5 @@
 
 
-rule all:
-   output:
-       "web/index.html"
-
 
 configfile: "config.yaml"
 
@@ -115,6 +111,8 @@ rule process_combination_assembly:
     output:
         fasta = "data/merged_assembly.fasta",
         coverage = "data/merged_contigs.sort.bam"
+    threads:
+        config["max_threads"]
     shell:
         "minimap2 -ax sr -t {threads} -a {input.short_assembly} {input.illumina_reads} | samtools view -b > data/mega_assembly.bam &&" \
         "samtools sort -o data/merged_contigs.sort.bam data/long_combined.bam && samtools index data/merged_contigs.sort.bam"
@@ -139,30 +137,28 @@ rule process_long_only:
 
 
 
-rule metabat_binning:
+checkpoint metabat_binning:
     input:
          bam = "data/merged_contigs.sort.bam",
          fasta = "data/merged_assembly.fasta"
     output:
-         binned_contigs = "data/metabat_bins.unbinned.fa"
+         metabat_done = "data/metabat_bins/done"
     conda:
          "envs/metabat2.yaml"
     shell:
-         "jgi_summarize_bam_contig_depths --outputDepth data/merged_contigs.cov &&" \
-         "metabat --seed 89 -l --unbinned -i {input.fasta} -a data/merged_contigs.cov -o data/metabat_bins"
-
-
+        # "jgi_summarize_bam_contig_depths --percentIdentity 75 --outputDepth data/merged_contigs.cov data/merged_contigs.sort.bam && " \
+         "mkdir -p data/metabat_bins && " \
+         "metabat --seed 89 -l --unbinned -i {input.fasta} -a data/merged_contigs.cov -o data/metabat_bins/binned_contigs && " \
+         "touch data/metabat_bins/done"
 
 
 
 rule pool_reads_long:
     input:
         bam = "data/merged_contigs.sort.bam",
-        metabat = "data/metabat_bins.{group}"
+        metabat_done = "data/metabat_bins/done"
     output:
-        list = "data/binned_reads.{group}.{genome_size}.{assembler}.list"
-    wildcard_constraints:
-        group = "\d+"
+        list = "data/list_of_lists.txt"
     conda:
         "envs/pysam.yaml"
     params:
@@ -173,33 +169,32 @@ rule pool_reads_long:
 
 rule get_fastq_pool:
     input:
-        list = "data/binned_reads.{group}.{genome_size}.{assembler}.list",
+        list = "data/list_of_lists.txt",
         reads = "data/long_reads.fastq.gz"
     output:
-        fastq = "data/binned_reads.{group}.{genome_size}.{assembler}fastq"
+        fastq_list = "data/binned_reads/done"
     conda:
         "envs/seqtk.yaml"
     shell:
-        "seqtk subset {input.reads} {input.list} | gzip > {output.fastq}"
+        "gawk '{{print $2}}' {input.list} | while read list; do seqtk subseq {input.reads} $list | gzip > $list.fastq.gz; done &&"\
+        "touch data/binned_reads/done"
 
 
-
-
-
-
-rule assemble_reads:
+rule assemble_pools_nano_only:
     input:
-        fastq = "data/binned_reads.{group}.{genome_size}.c.fastq"
+        fastq = "data/binned_reads/done",
+        list = "data/list_of_lists.txt"
+    params:
+        illumina = None
+    threads:
+        config["max_threads"]
     output:
-        directory = "data/canu.{group}/",
-        fasta = "data/canu.{group}/meta.contigs.fasta"
+        summary = "data/canu_asembly_summary.txt"
     conda:
         "envs/canu.yaml"
-    shell:
-        "canu -d {output.directory} -p meta gnuplotTested=true useGrid=false genomeSize={wildcards.genome_size} -nanopore_raw {input.fastq}"
+    script:
+        "scripts/assemble_pools.py"
 
 
 
-#
-#
-# rule final_assembly:
+

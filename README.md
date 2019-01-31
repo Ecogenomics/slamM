@@ -28,4 +28,6 @@ edit config.yaml to point to reads and directory
 
 cd into SDMass directory
 
-snakemake --cores 12 --use-conda step_down_meta_assembly
+```
+$ snakemake --cores 12 --use-conda step_down_meta_assembly
+```

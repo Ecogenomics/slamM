@@ -1,7 +1,7 @@
 long_reads:
-   /home/mjsull/curr_projects/nanopore_pipeline/reads/zymo.0.1.fastq.gz
+    /srv/projects/nanopore/zygen/nano_reads/zymo.0.1.fastq.gz
 workdir:
-    /home/mjsull/testsnake
+    /srv/projects/nanopore/zygen/z0.1.noill
 reference_filter:
     none
 max_threads:
