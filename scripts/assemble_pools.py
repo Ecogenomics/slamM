@@ -1,5 +1,7 @@
 import os
 import subprocess
+
+
 bin_bases_ill_dict = {}
 cov_cutoff_nano = 60
 cov_cutoff_ill = 10
@@ -24,8 +26,6 @@ with open(snakemake.input.list) as f:
         ill_cov = bases_ill / length
         if nano_cov > cov_cutoff_nano or ill_cov < cov_cutoff_ill:
             out_assemblies.append('data/final_assemblies/%s_canu/meta.contigs.fasta' % mb_bin)
-            print("canu -d data/final_assemblies/%s_canu -p meta maxThreads=%d"\
-            " useGrid=false genomeSize=%d -nanopore-raw %s" % (mb_bin, snakemake.threads, length, reads))
             subprocess.Popen("canu -d data/final_assemblies/%s_canu -p meta maxThreads=%d"\
             " useGrid=false genomeSize=%d -nanopore-raw %s" % (mb_bin, snakemake.threads, length, reads), shell=True).wait()
 

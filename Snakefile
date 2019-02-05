@@ -1,13 +1,10 @@
-
-
-
 configfile: "config.yaml"
 
 workdir: config["workdir"]
 
 
 ruleorder: get_reads_list_ref > copy_reads
-
+ruleorder: filter_illumina_ref > ill_copy_reads
 ruleorder: process_combination_assembly > process_long_only
 
 rule map_reads_ref:
@@ -56,7 +53,7 @@ rule copy_reads:
         "data/long_reads.fastq.gz"
     run:
         if input.fastq[-3:] == ".gz":
-            shell("ln {input.fastq} {output}")
+            shell("ln -s {input.fastq} {output}")
         else:
             shell("cat {input.fastq} | gzip > {output}")
         
@@ -98,6 +95,64 @@ rule step_down_meta_assembly:
          config["max_threads"]
     script:
         "scripts/step_down_meta_assembly.py"
+
+
+rule filter_illumina_ref:
+    input:
+        fastq = config["short_reads"],
+        reference_filter= config["reference_filter"]
+    output:
+        bam = "data/short_unmapped_ref.bam",
+        fastq = "data/short_reads.fastq.gz"
+    conda:
+        "envs/minimap2.yaml"
+    threads:
+         config["max_threads"]
+    shell:
+        "minimap2 -ax sr -t {threads} {input.reference_filter} {input.fastq}  | samtools view -b -f 12 > {output.bam} &&"\
+        "samtools bam2fq {output.bam} | gzip > {output.fastq}"
+
+rule ill_copy_reads:
+    input:
+        fastq = config["short_reads"],
+    output:
+        "data/short_reads.fastq.gz"
+    run:
+        if input.fastq[-3:] == ".gz":
+            shell("ln -s {input.fastq} {output}")
+        else:
+            shell("cat {input.fastq} | gzip > {output}")
+
+rule filter_illumina_wtdbg2:
+    input:
+        fastq = "data/short_reads.fastq.gz",
+        reference = "data/combined_assembly_long.fasta"
+    output:
+        bam = "data/short_unmapped_wtdg2.bam",
+        fastq = "data/short_reads.filt.fastq.gz"
+    conda:
+        "envs/minimap2.yaml"
+    threads:
+         config["max_threads"]
+    shell:
+        "minimap2 -ax sr -t {threads} {input.reference} {input.fastq}  | samtools view -b -f 12 > {output.bam} &&"\
+        "samtools bam2fq {output.bam} | gzip > {output.fastq}"
+
+
+
+rule megahit_assembly:
+    input:
+        fastq = "data/short_reads.filt.fastq.gz"
+    output:
+        directory = directory("data/mega_assembly"),
+        fasta = "data/mega_assembly/final.contigs.fa"
+    threads:
+         config["max_threads"]
+    conda:
+        "envs/megahit.yaml"
+    shell:
+        "megahit -t {threads} --12 {input.fastq} -o {output.directory}"
+
 
 
 
@@ -146,7 +201,7 @@ checkpoint metabat_binning:
     conda:
          "envs/metabat2.yaml"
     shell:
-        # "jgi_summarize_bam_contig_depths --percentIdentity 75 --outputDepth data/merged_contigs.cov data/merged_contigs.sort.bam && " \
+         "jgi_summarize_bam_contig_depths --percentIdentity 75 --outputDepth data/merged_contigs.cov data/merged_contigs.sort.bam && " \
          "mkdir -p data/metabat_bins && " \
          "metabat --seed 89 -l --unbinned -i {input.fasta} -a data/merged_contigs.cov -o data/metabat_bins/binned_contigs && " \
          "touch data/metabat_bins/done"

@@ -1,8 +1,6 @@
-long_reads:
-    /srv/projects/nanopore/zygen/nano_reads/zymo.0.1.fastq.gz
-workdir:
-    /srv/projects/nanopore/zygen/z0.1.noill
 reference_filter:
+    none
+short_reads:
     none
 max_threads:
     24
