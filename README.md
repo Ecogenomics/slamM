@@ -3,8 +3,9 @@
 ### Step down metagenome assembler
 
 
-### REQUIREMENTS: 
+### REQUIREMENTS
 snakemake
+
 miniconda
 
 
@@ -29,5 +30,11 @@ edit config.yaml to point to reads and directory
 cd into SDMass directory
 
 ```
-$ snakemake --cores 12 --use-conda step_down_meta_assembly
+$ snakemake step_down_meta_assembly --cores 12 --use-conda 
+```
+
+Alternatively files can be passed to snakemake straight from the shell
+
+```
+snakemake step_down_meta_assembly --cores 24 --use-conda --config long_reads=reads.fastq workdir=/path/to/output/files/ 
 ```

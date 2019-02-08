@@ -86,7 +86,7 @@ rule step_down_meta_assembly:
         cutoffs = "data/cutoffs.txt"
     params:
         minimum_coverage = 60,
-        long_only = "short_reads" in config
+        long_only = config["short_reads_1"] == "none"
     output:
         "data/combined_assembly_long.fasta"
     conda:
@@ -99,8 +99,9 @@ rule step_down_meta_assembly:
 
 rule filter_illumina_ref:
     input:
-        fastq = config["short_reads"],
-        reference_filter= config["reference_filter"]
+        fastq_1 = config["short_reads_1"],
+        fastq_2 = config["short_reads_2"],
+        reference_filter = config["reference_filter"]
     output:
         bam = "data/short_unmapped_ref.bam",
         fastq = "data/short_reads.fastq.gz"
@@ -109,19 +110,19 @@ rule filter_illumina_ref:
     threads:
          config["max_threads"]
     shell:
-        "minimap2 -ax sr -t {threads} {input.reference_filter} {input.fastq}  | samtools view -b -f 12 > {output.bam} &&"\
+        "minimap2 -ax sr -t {threads} {input.reference_filter} {input.fastq_1} {input.fastq_1}  | samtools view -b -f 12 > {output.bam} &&"\
         "samtools bam2fq {output.bam} | gzip > {output.fastq}"
 
 rule ill_copy_reads:
     input:
-        fastq = config["short_reads"],
+        fastq_1 = config["short_reads_1"],
+        fastq_2 = config["short_reads_2"]
     output:
         "data/short_reads.fastq.gz"
-    run:
-        if input.fastq[-3:] == ".gz":
-            shell("ln -s {input.fastq} {output}")
-        else:
-            shell("cat {input.fastq} | gzip > {output}")
+    conda:
+        "envs/seqtk.yaml"
+    shell:
+        "seqtk mergepe {input.fastq_1} {input.fastq_2} | gzip > {output}"
 
 rule filter_illumina_wtdbg2:
     input:
@@ -192,7 +193,7 @@ rule process_long_only:
 
 
 
-checkpoint metabat_binning:
+rule metabat_binning:
     input:
          bam = "data/merged_contigs.sort.bam",
          fasta = "data/merged_assembly.fasta"
@@ -217,7 +218,7 @@ rule pool_reads_long:
     conda:
         "envs/pysam.yaml"
     params:
-        long_only = "short_reads" in config
+        long_only = config["short_reads_1"] == "none"
     script:
         "scripts/pool_reads_long.py"
 

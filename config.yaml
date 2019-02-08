@@ -1,6 +1,10 @@
+long_reads:
+    none
+workdir:
+    none
 reference_filter:
     none
-short_reads:
+short_reads_1:
     none
 max_threads:
     24
