@@ -39,7 +39,9 @@ def create_read_list(bamfile, outfile, contigs_to_filter):
         for i in out_set:
             o.write(i + '\n')
 
-overide = False
+overide = True
+
+
 
 with open(snakemake.input.cutoffs) as f, open(snakemake.output[0], 'w') as o:
     try:
@@ -48,16 +50,22 @@ with open(snakemake.input.cutoffs) as f, open(snakemake.output[0], 'w') as o:
         pass
     curr_reads = snakemake.input.fastq
     contig_count = 1
+    first = True
     for line in f:
         read_length = line.rstrip()
         prefix = os.path.join('data', 'wtdbg2assembly', 'w.' + read_length)
-
         if not os.path.exists(prefix + '.ctg.lay.gz') or overide:
-            if read_length == '500':
+            if read_length.startswith("bases="):
+                percent = 600000000 / float(read_length.split("=")[1])
+                subprocess.Popen('seqtk sample %s %f | gzip > %s.downsampled.fastq.gz' % (curr_reads, percent, prefix), shell=True).wait()
+                process = subprocess.Popen('wtdbg2 -t %s -i %s -fo %s -p 0 -k 15 -AS 2 -s 0.05 -L 5000' % (snakemake.threads, prefix + ".downsampled.fastq.gz", prefix),
+                                           shell=True, stderr=subprocess.PIPE)
+
+            elif read_length == '500':
                 process = subprocess.Popen('wtdbg2 -t %s -p 0 -k 15 -AS 2 -s 0.05 --edge-min 2 --rescue-low-cov- edges -i %s -fo %s -L %s' % (snakemake.threads, curr_reads, prefix, read_length),
                                            shell=True, stderr=subprocess.PIPE)
             else:
-                process = subprocess.Popen('wtdbg2 -t %s -i %s -fo %s -L %s' % (snakemake.threads, curr_reads, prefix, read_length),
+                process = subprocess.Popen('wtdbg2 -t %s -i %s -fo %s -p 0 -k 15 -AS 2 -s 0.05 -L %s' % (snakemake.threads, curr_reads, prefix, read_length),
                                            shell=True, stderr=subprocess.PIPE)
             output = process.communicate()[0]
             if process.returncode != 0:
@@ -68,7 +76,7 @@ with open(snakemake.input.cutoffs) as f, open(snakemake.output[0], 'w') as o:
                 raise subprocess.CalledProcessError(process.returncode, 'wtdbg2', output=output)
 
         if not os.path.exists(prefix + '.fna') or overide:
-            process = subprocess.Popen('wtdbg-cns -t %s -i %s.ctg.lay.gz -fo %s.fna' % (snakemake.threads, prefix, prefix),
+            process = subprocess.Popen('wtpoa-cns -t %s -i %s.ctg.lay.gz -fo %s.fna' % (snakemake.threads, prefix, prefix),
                                        shell=True, stderr=subprocess.PIPE)
             output = process.communicate()[0]
             if process.returncode != 0:

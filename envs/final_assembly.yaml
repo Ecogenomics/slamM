@@ -1,0 +1,5 @@
+channels:
+  - bioconda
+dependencies:
+  - canu = 1.8
+  - unicycler = 0.4.7-0

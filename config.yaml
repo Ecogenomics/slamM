@@ -6,5 +6,7 @@ reference_filter:
     none
 short_reads_1:
     none
+short_reads_2:
+    none
 max_threads:
     24

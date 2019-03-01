@@ -1,4 +1,3 @@
-import sys
 with open(snakemake.input[0]) as f:
     read_lengths = []
     f.readline()
@@ -28,7 +27,9 @@ with open(snakemake.input[0]) as f:
     if read_cutoffs[-1] > 500:
         read_cutoffs.append(500)
 
+
 with open(snakemake.output[0], 'w') as o:
+    o.write("bases=" + bp_sum)
     for i in read_cutoffs:
         o.write(str(i) + '\n')
 

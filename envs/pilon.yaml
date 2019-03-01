@@ -1,4 +1,4 @@
 channels:
   - bioconda
 dependencies:
-  - canu = 1.8
+  - pilon =1.22
