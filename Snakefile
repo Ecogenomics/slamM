@@ -3,8 +3,8 @@ configfile: "config.yaml"
 workdir: config["workdir"]
 
 
-ruleorder: get_reads_list_ref > copy_reads
 
+ruleorder: map_reads_ref > copy_reads
 ruleorder: filter_illumina_ref > ill_copy_reads
 ruleorder: process_combination_assembly > process_long_only
 ruleorder: metabat_binning_combined > metabat_binning_long
@@ -234,7 +234,7 @@ rule process_long_only:
 rule metabat_binning_long:
     input:
          bam = "data/long_reads_vs_comb_long.sort.bam",
-         fasta = "combined_assembly_long.pol.fasta"
+         fasta = "data/combined_assembly_long.pol.fasta"
     output:
          metabat_done = "data/metabat_bins/done"
     conda:
