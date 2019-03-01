@@ -113,7 +113,7 @@ rule polish_sdmass:
         fastq = "data/long_reads.fastq.gz",
         fasta = "data/combined_assembly_long.fasta"
     output:
-        fasta = "data/conbined_assembly_long.pol.fasta"
+        fasta = "data/combined_assembly_long.pol.fasta"
     params:
         rounds = 2
     conda:
@@ -159,7 +159,7 @@ rule ill_copy_reads:
 rule filter_illumina_wtdbg2:
     input:
         fastq = "data/short_reads.fastq.gz",
-        reference = "data/conbined_assembly_long.pol.fasta"
+        reference = "data/combined_assembly_long.pol.fasta"
     output:
         bam = "data/short_vs_wtdg2.sort.bam",
         fastq = "data/short_reads.filt.fastq.gz"
@@ -195,7 +195,7 @@ rule megahit_assembly:
 
 rule process_combination_assembly:
     input:
-        long_assembly = "data/conbined_assembly_long.pol.fasta",
+        long_assembly = "data/combined_assembly_long.pol.fasta",
         short_assembly = "data/mega_assembly.fasta",
         illumina_reads = "data/short_reads.filt.fastq.gz",
         ill_vs_wtdbg2_bam = "data/short_vs_wtdg2.sort.bam"
@@ -216,7 +216,7 @@ rule process_combination_assembly:
 
 rule process_long_only:
     input:
-        fasta = "data/conbined_assembly_long.pol.fasta",
+        fasta = "data/combined_assembly_long.pol.fasta",
         reads = "data/long_reads.fastq.gz"
     output:
         bam = "data/long_reads_vs_comb_long.sort.bam"
@@ -234,7 +234,7 @@ rule process_long_only:
 rule metabat_binning_long:
     input:
          bam = "data/long_reads_vs_comb_long.sort.bam",
-         fasta = "data/combined_assembly_long.pilon.fasta"
+         fasta = "combined_assembly_long.pol.fasta"
     output:
          metabat_done = "data/metabat_bins/done"
     conda:
@@ -250,7 +250,7 @@ rule metabat_binning_long:
 rule metabat_binning_combined:
     input:
          bam = "data/short_vs_merged_assembly.sort.bam",
-         fasta = "data/combined_assembly_long.pilon.fasta"
+         fasta = "data/merged_assembly.fasta"
     output:
          metabat_done = "data/metabat_bins/done"
     conda:
