@@ -29,7 +29,7 @@ with open(snakemake.input[0]) as f:
 
 
 with open(snakemake.output[0], 'w') as o:
-    o.write("bases=" + bp_sum)
+    o.write("bases=" + str(bp_sum))
     for i in read_cutoffs:
         o.write(str(i) + '\n')
 
