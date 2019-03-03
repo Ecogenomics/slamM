@@ -334,13 +334,13 @@ rule assemble_pools:
     script:
         "scripts/assemble_pools.py"
 
-
-rule cat_pools:
-    input:
-        summary = "data/canu_assembly"
-    output:
-        fasta = "data/combined_final_assemblies.fasta"
-    script:
+#
+# rule cat_pools:
+#     input:
+#         summary = "data/canu_assembly"
+#     output:
+#         fasta = "data/combined_final_assemblies.fasta"
+#     script:
 
 #
 # rule polish_pools:
