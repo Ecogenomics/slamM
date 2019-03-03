@@ -328,8 +328,29 @@ rule assemble_pools:
     threads:
         config["max_threads"]
     output:
-        summary = "data/canu_asembly_summary.txt"
+        summary = "data/canu_assembly_summary.txt"
     conda:
         "envs/final_assembly.yaml"
     script:
         "scripts/assemble_pools.py"
+
+
+rule cat_pools:
+    input:
+        summary = "data/canu_assembly"
+    output:
+        fasta = "data/combined_final_assemblies.fasta"
+    script:
+
+
+rule polish_pools:
+    input:
+        summ
+
+
+rule metabat_binning_2:
+
+
+rule checkm:
+
+rule create_webpage:

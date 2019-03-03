@@ -53,7 +53,10 @@ with open(snakemake.input.cutoffs) as f, open(snakemake.output[0], 'w') as o:
     first = True
     for line in f:
         read_length = line.rstrip()
-        prefix = os.path.join('data', 'wtdbg2assembly', 'w.' + read_length)
+        if read_length.startswith("bases="):
+            prefix = os.path.join("data", "wtdbg2assembly", "w.downsampled")
+        else:
+            prefix = os.path.join('data', 'wtdbg2assembly', 'w.' + read_length)
         if not os.path.exists(prefix + '.ctg.lay.gz') or overide:
             if read_length.startswith("bases="):
                 percent = 600000000 / float(read_length.split("=")[1])
