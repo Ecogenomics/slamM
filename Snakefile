@@ -342,15 +342,15 @@ rule cat_pools:
         fasta = "data/combined_final_assemblies.fasta"
     script:
 
-
-rule polish_pools:
-    input:
-        summ
-
-
-rule metabat_binning_2:
-
-
-rule checkm:
-
-rule create_webpage:
+#
+# rule polish_pools:
+#     input:
+#         summ
+#
+#
+# rule metabat_binning_2:
+#
+#
+# rule checkm:
+#
+# rule create_webpage:
