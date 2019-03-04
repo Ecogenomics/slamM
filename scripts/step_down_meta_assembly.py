@@ -50,7 +50,6 @@ with open(snakemake.input.cutoffs) as f, open(snakemake.output[0], 'w') as o:
         pass
     curr_reads = snakemake.input.fastq
     contig_count = 1
-    first = True
     for line in f:
         read_length = line.rstrip()
         if read_length.startswith("bases="):
@@ -60,6 +59,8 @@ with open(snakemake.input.cutoffs) as f, open(snakemake.output[0], 'w') as o:
         if not os.path.exists(prefix + '.ctg.lay.gz') or overide:
             if read_length.startswith("bases="):
                 percent = 600000000 / float(read_length.split("=")[1])
+                if percent >= 0.5:
+                    continue
                 subprocess.Popen('seqtk sample %s %f | gzip > %s.downsampled.fastq.gz' % (curr_reads, percent, prefix), shell=True).wait()
                 process = subprocess.Popen('wtdbg2 -t %s -i %s -fo %s -p 0 -k 15 -AS 2 -s 0.05 -L 5000' % (snakemake.threads, prefix + ".downsampled.fastq.gz", prefix),
                                            shell=True, stderr=subprocess.PIPE)
