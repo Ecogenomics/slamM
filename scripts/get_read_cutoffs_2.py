@@ -26,8 +26,8 @@ with open(snakemake.input[0]) as f:
         if i >= max_read:
             bp_sum_max_read = bp_sum
         if bp_sum < cutoffs[-1]:
-            cutoffs.pop()
-            if cutoffs <= 500:
+            cutoff = cutoffs.pop()
+            if cutoff <= 500:
                 read_cutoffs.append(500)
                 break
             else:
