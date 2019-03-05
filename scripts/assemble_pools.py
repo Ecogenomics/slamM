@@ -42,4 +42,4 @@ with open(snakemake.output.summary, 'w') as o:
                     length_list.append(0)
                 else:
                     length_list[-1] += len(line.rstrip())
-        o.write('\t'.join([i.split('/')[2], str(max(length_list)), str(len(length_list)), str(sum(length_list))]) + '\n')
+        o.write('\t'.join([i.split('/')[2], str(max(length_list)), str(len(length_list)), str(sum(length_list)), i]) + '\n')

@@ -2,18 +2,25 @@ import subprocess
 import os
 import pysam
 
-def contig_coverage(bamfile, outfile):
+def contig_coverage(bamfile, outfile, read_length):
+    print(bamfile)
+    proc = subprocess.Popen("samtools depth -aa -l %s %s" % (read_length, bamfile), shell=True, stdout=subprocess.PIPE)
+    last_contig = None
+    bases = 0
     with open(outfile, 'w') as o:
-        samfile = pysam.AlignmentFile(bamfile, 'rb')
-        for i, length in zip(samfile.references, samfile.lengths):
-            bases = 0
-            for j in samfile.pileup(i):
-                bases += j.nsegments
-            o.write(i + '\t' + str(bases/length) + '\n')
+        for line in iter(proc.stdout.readline, ''):
+            contig, pos, depth = line.split()
+            if last_contig != contig:
+                o.write(last_contig + '\t' + str(bases/last_pos) + '\n')
+                bases = 0
+            last_contig = contig
+            last_pos = int(pos)
+            bases += int(depth)
+        o.write(last_contig + '\t' + str(bases / last_pos) + '\n')
 
 
 def create_read_list(bamfile, outfile, contigs_to_filter):
-    samfile = pysam.AlignmentFile(bamfile, 'rb')
+    samfile = pysam.AlignmentFile(bamfile, 'rb', check_sq=False)
     cutoff = 0.05
     mapped_full = set()
     all_reads = set()
@@ -51,24 +58,20 @@ with open(snakemake.input.cutoffs) as f, open(snakemake.output[0], 'w') as o:
     curr_reads = snakemake.input.fastq
     contig_count = 1
     for line in f:
-        read_length = line.rstrip()
-        if read_length.startswith("bases="):
-            prefix = os.path.join("data", "wtdbg2assembly", "w.downsampled")
-        else:
-            prefix = os.path.join('data', 'wtdbg2assembly', 'w.' + read_length)
+        read_length, percent = line.split()
+        prefix = os.path.join('data', 'wtdbg2assembly', 'w.' + read_length + '.' + percent[:4])
         if not os.path.exists(prefix + '.ctg.lay.gz') or overide:
-            if read_length.startswith("bases="):
-                percent = 600000000 / float(read_length.split("=")[1])
-                if percent >= 0.5:
-                    continue
-                subprocess.Popen('seqtk sample %s %f | gzip > %s.downsampled.fastq.gz' % (curr_reads, percent, prefix), shell=True).wait()
-                process = subprocess.Popen('wtdbg2 -t %s -i %s -fo %s -p 0 -k 15 -AS 2 -s 0.05 -L 5000' % (snakemake.threads, prefix + ".downsampled.fastq.gz", prefix),
+            if percent != "1.00":
+                print('seqtk sample %s %s | gzip > %s.fastq.gz' % (curr_reads, percent, prefix))
+                subprocess.Popen('seqtk sample %s %s | gzip > %s.fastq.gz' % (curr_reads, percent, prefix), shell=True).wait()
+                process = subprocess.Popen('wtdbg2 -t %s -i %s -fo %s -p 0 -k 15 -AS 2 -s 0.05 -L 5000' % (snakemake.threads, prefix + ".fastq.gz", prefix),
                                            shell=True, stderr=subprocess.PIPE)
 
             elif read_length == '500':
                 process = subprocess.Popen('wtdbg2 -t %s -p 0 -k 15 -AS 2 -s 0.05 --edge-min 2 --rescue-low-cov- edges -i %s -fo %s -L %s' % (snakemake.threads, curr_reads, prefix, read_length),
                                            shell=True, stderr=subprocess.PIPE)
             else:
+                print('wtdbg2 -t %s -i %s -fo %s -p 0 -k 15 -AS 2 -s 0.05 -L %s' % (snakemake.threads, curr_reads, prefix, read_length))
                 process = subprocess.Popen('wtdbg2 -t %s -i %s -fo %s -p 0 -k 15 -AS 2 -s 0.05 -L %s' % (snakemake.threads, curr_reads, prefix, read_length),
                                            shell=True, stderr=subprocess.PIPE)
             output = process.communicate()[0]
@@ -90,19 +93,9 @@ with open(snakemake.input.cutoffs) as f, open(snakemake.output[0], 'w') as o:
                     pass
                 raise subprocess.CalledProcessError(process.returncode, 'wtdbg-cns', output=output)
 
-        if not os.path.exists(prefix + '.bam') or overide:
-            process = subprocess.Popen('minimap2 -ax map-ont -L -t %s %s.fna %s  | samtools view -b  > %s.bam' % (snakemake.threads, prefix, curr_reads, prefix),
-                                       shell=True, stderr=subprocess.PIPE)
-            output = process.communicate()[0]
-            if process.returncode != 0:
-                try:
-                    os.remove(prefix+ '.bam')
-                except FileNotFoundError:
-                    pass
-                raise subprocess.CalledProcessError(process.returncode, 'minimap2', output=output)
-
         if not os.path.exists(prefix + '.sort.bam.bai') or overide:
-            process = subprocess.Popen('samtools sort -@ %s -o %s.sort.bam %s.bam && samtools index %s.sort.bam' % (snakemake.threads, prefix, prefix, prefix),
+            process = subprocess.Popen('minimap2 -ax map-ont -L -t %s %s.fna %s  | samtools view -b  | samtools sort'
+                                       ' -o %s.sort.bam - && samtools index %s.sort.bam' % (snakemake.threads, prefix, prefix, prefix),
                                        shell=True, stderr=subprocess.PIPE)
             output = process.communicate()[0]
             if process.returncode != 0:
@@ -110,11 +103,10 @@ with open(snakemake.input.cutoffs) as f, open(snakemake.output[0], 'w') as o:
                     os.remove(prefix + '.sort.bam.bai')
                 except FileNotFoundError:
                     pass
-                raise subprocess.CalledProcessError(process.returncode, 'samtools', output=output)
+                raise subprocess.CalledProcessError(process.returncode, 'minimap2', output=output)
 
         if not os.path.exists(prefix + '.coverage'):
-            contig_coverage(prefix + '.sort.bam', prefix + '.coverage')
-
+            contig_coverage(prefix + '.sort.bam', prefix + '.coverage', read_length)
         high_cov_contigs = set()
         with open(prefix + '.coverage') as cov_file:
             for line in cov_file:

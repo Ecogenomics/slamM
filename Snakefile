@@ -5,7 +5,7 @@ workdir: config["workdir"]
 
 
 ruleorder: map_reads_ref > copy_reads
-ruleorder: filter_illumina_ref > ill_copy_reads
+ruleorder: filter_illumina_ref > filter_illumina_ref_interleaved > ill_copy_reads > ill_copy_reads_interleaved
 ruleorder: process_combination_assembly > process_long_only
 ruleorder: metabat_binning_combined > metabat_binning_long
 ruleorder: pool_reads_combo > pool_reads_long
@@ -88,7 +88,7 @@ rule get_read_cutoffs:
     params:
         "10"
     script:
-        "scripts/get_read_cutoffs.py"
+        "scripts/get_read_cutoffs_2.py"
 
 
 # peform the step down metagenome assembly
@@ -141,6 +141,21 @@ rule filter_illumina_ref:
         "minimap2 -ax sr -t {threads} {input.reference_filter} {input.fastq_1} {input.fastq_1}  | samtools view -b -f 12 > {output.bam} &&"\
         "samtools bam2fq {output.bam} | gzip > {output.fastq}"
 
+rule filter_illumina_ref_interleaved:
+    input:
+        fastq_1 = config["short_reads_1"],
+        reference_filter = config["reference_filter"]
+    output:
+        bam = "data/short_unmapped_ref.bam",
+        fastq = "data/short_reads.fastq.gz"
+    conda:
+        "envs/minimap2.yaml"
+    threads:
+         config["max_threads"]
+    shell:
+        "minimap2 -ax sr -t {threads} {input.reference_filter} {input.fastq_1} | samtools view -b -f 12 > {output.bam} &&"\
+        "samtools bam2fq {output.bam} | gzip > {output.fastq}"
+
 
 # if no reference provided merge the short reads and copy ot working directory
 rule ill_copy_reads:
@@ -153,6 +168,17 @@ rule ill_copy_reads:
         "envs/seqtk.yaml"
     shell:
         "seqtk mergepe {input.fastq_1} {input.fastq_2} | gzip > {output}"
+
+rule ill_copy_reads_interleaved:
+    input:
+        fastq = config["short_reads_1"]
+    output:
+        "data/short_reads.fastq.gz"
+    run:
+        if input.fastq[-3:] == ".gz":
+            shell("ln -s {input.fastq} {output}")
+        else:
+            shell("cat {input.fastq} | gzip > {output}")
 
 
 # filter illumina reada against the nanopore wtdbg2 assemblies
@@ -240,7 +266,7 @@ rule metabat_binning_long:
     conda:
          "envs/metabat2.yaml"
     shell:
-         "jgi_summarize_bam_contig_depths --percentIdentity 75 --outputDepth data/merged_contigs.cov data/merged_contigs.sort.bam && " \
+         "jgi_summarize_bam_contig_depths --percentIdentity 75 --outputDepth data/merged_contigs.cov {input.bam} && " \
          "mkdir -p data/metabat_bins && " \
          "metabat --seed 89 -l -i {input.fasta} -a data/merged_contigs.cov -o data/metabat_bins/binned_contigs && " \
          "touch data/metabat_bins/done"
@@ -256,7 +282,7 @@ rule metabat_binning_combined:
     conda:
          "envs/metabat2.yaml"
     shell:
-         "jgi_summarize_bam_contig_depths --outputDepth data/merged_contigs.cov data/merged_contigs.sort.bam && " \
+         "jgi_summarize_bam_contig_depths --outputDepth data/merged_contigs.cov {input.bam} && " \
          "mkdir -p data/metabat_bins && " \
          "metabat --seed 89 -l -i {input.fasta} -a data/merged_contigs.cov -o data/metabat_bins/binned_contigs && " \
          "touch data/metabat_bins/done"
@@ -334,23 +360,49 @@ rule assemble_pools:
     script:
         "scripts/assemble_pools.py"
 
-#
-# rule cat_pools:
-#     input:
-#         summary = "data/canu_assembly"
-#     output:
-#         fasta = "data/combined_final_assemblies.fasta"
-#     script:
+rule cat_pools:
+    input:
+        summary = "data/canu_assembly_summary.txt"
+    output:
+        fasta = "data/combined_final_assemblies.fasta"
+    script:
+        "scripts/concat_canu_unicyc.py"
+
+rule racon_polish_final:
+    input:
+        fastq = "data/long_reads.fastq.gz",
+        fasta = "data/combined_final_assemblies.fasta"
+    output:
+        fasta = "data/combined_final_assemblies.pol.fasta"
+    params:
+        rounds = 2
+    conda:
+         "envs/racon.yaml"
+    threads:
+         config["max_threads"]
+    script:
+         "scripts/polish_racon.py"
+
+
+
+rule metabat_binning_2:
+    input:
+         bam = "data/final_cov.sort.bam",
+         fasta = "data/combined_final_assemblies.pol.fasta"
+    output:
+         metabat_done = "data/metabat_bins_2/done"
+    conda:
+         "envs/metabat2.yaml"
+    shell:
+         "jgi_summarize_bam_contig_depths --outputDepth data/combined_final.cov data/{input.bam} && " \
+         "mkdir -p data/metabat_bins_2 && " \
+         "metabat --seed 89 -l -i {input.fasta} -a data/combined_final.cov -o data/metabat_bins_2/binned_contigs && " \
+         "touch data/metabat_bins_2/done"
+
+#rule checkm:
+
+
 
 #
-# rule polish_pools:
-#     input:
-#         summ
-#
-#
-# rule metabat_binning_2:
-#
-#
-# rule checkm:
 #
 # rule create_webpage:
