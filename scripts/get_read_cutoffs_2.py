@@ -18,16 +18,16 @@ with open(snakemake.input[0]) as f:
     max_read = 8000
     cutoffs = [i*bp_sum for i in y]
     read_cutoffs = []
-
+    index = 0
     for i in read_lengths:
-        if cutoffs == []:
+        if index == len(read_lengths):
             break
-        bp_sum -= i
+        bp_sum += i
         if i >= max_read:
             bp_sum_max_read = bp_sum
-        if bp_sum < cutoffs[-1]:
-            cutoff = cutoffs.pop()
-            if cutoff <= 500:
+        if bp_sum > cutoffs[index]:
+            index += 1
+            if i <= 500:
                 read_cutoffs.append(500)
                 break
             else:
