@@ -236,8 +236,10 @@ rule process_combination_assembly:
     shell:
         "minimap2 -ax sr -t {threads} -a {input.short_assembly} {input.illumina_reads} | samtools view -b > data/mega_assembly.bam &&" \
         "samtools sort -o data/mega_assembly.sort.bam data/mega_assembly.bam && " \
+        "pilon -Xmx16000m --genome {input.short_assembly} --frags data/mega_assembly.bam --threads {threads} --output data/short_pilon_1.fa --fix bases &&"\
+        "pilon -Xmx16000m --genome {input.long_assembly} --frags data/short_vs_merged_assembly.sort.bam --threads {threads} --output data/long_pilon_1.fa --fix bases &&"\
         "samtools merge {output.bam} {input.ill_vs_wtdbg2_bam} data/mega_assembly.sort.bam && "\
-        "cat {input.long_assembly} {input.short_assembly} > {output.fasta}"
+        "cat data/long_pilon_1.fa data/short_pilon_1.fa > {output.fasta}"
 
 
 
@@ -252,9 +254,8 @@ rule process_long_only:
     threads:
         config["max_threads"]
     shell:
-        "minimap2 -t {threads} -ax map-ont -a {input.fasta} {input.reads} | gzip > data/long_Reads_vs_comb_long.sam.gz && "\
-        "zcat data/long_Reads_vs_comb_long.sam.gz | samtools view -b > data/long_reads_vs_comb_long.bam && " \
-        "samtools sort -o {output.bam} data/long_combined.bam && samtools index {output.bam}"
+        "minimap2 -t {threads} -ax map-ont -a {input.fasta} {input.reads} |  samtools view -b | " \
+        "samtools sort -o {output.bam} - && samtools index {output.bam}"
 
 
 
@@ -329,9 +330,9 @@ rule get_fastq_pool_combo:
     conda:
         "envs/seqtk.yaml"
     shell:
-        "gawk '{{print $2}}' {input.list} | while read list; do seqtk subseq {input.long_reads} $list | gzip > $list.long.fastq.gz; done &&"\
-        "gawk '{{print $5}}' {input.list} | while read list; do seqtk seq -1 {input.short_reads} | seqtk subseq - $list | gzip > $list.short.1.fastq.gz; done &&"\
-        "gawk '{{print $6}}' {input.list} | while read list; do seqtk seq -2 {input.short_reads} | seqtk subseq - $list | gzip > $list.short.2.fastq.gz; done &&"\
+        "gawk '{{print $2}}' {input.list} | while read list; do seqtk subseq {input.long_reads} $list | gzip > $list.fastq.gz; done &&"\
+        "gawk '{{print $5}}' {input.list} | while read list; do seqtk seq -1 {input.short_reads} | seqtk subseq - $list | gzip > $list.1.fastq.gz; done &&"\
+        "gawk '{{print $6}}' {input.list} | while read list; do seqtk seq -2 {input.short_reads} | seqtk subseq - $list | gzip > $list.2.fastq.gz; done &&"\
         "touch data/binned_reads/done"
 
 
@@ -344,7 +345,7 @@ rule get_fastq_pool_long:
     conda:
         "envs/seqtk.yaml"
     shell:
-        "gawk '{{print $2}}' {input.list} | while read list; do seqtk subseq {input.reads} $list | gzip > $list.long.fastq.gz; done &&"\
+        "gawk '{{print $2}}' {input.list} | while read list; do seqtk subseq {input.reads} $list | gzip > $list.fastq.gz; done &&"\
         "touch data/binned_reads/done"
 
 
@@ -378,32 +379,65 @@ rule racon_polish_final:
     params:
         rounds = 2
     conda:
-         "envs/racon.yaml"
+        "envs/racon.yaml"
     threads:
-         config["max_threads"]
+        config["max_threads"]
     script:
-         "scripts/racon_polish.py"
+        "scripts/racon_polish.py"
+
+
+rule final_cov_long:
+    input:
+        reads = "data/long_reads.fastq.gz",
+        fasta = "data/combined_final_assemblies.pol.fasta"
+    output:
+        "data/final_cov.sort.bam"
+    conda:
+        "envs/minimap2.yaml"
+    threads:
+        config["max_threads"]
+    shell:
+        "minimap2 -t {threads} -ax map-ont -a {input.fasta} {input.reads} |  samtools view -b | " \
+        "samtools sort -o {output.bam} - && samtools index {output.bam}"
+
 
 
 
 rule metabat_binning_2:
     input:
-         bam = "data/final_cov.sort.bam",
-         fasta = "data/combined_final_assemblies.pol.fasta"
+        bam = "data/final_cov.sort.bam",
+        fasta = "data/combined_final_assemblies.pol.fasta"
     output:
-         metabat_done = "data/metabat_bins_2/done"
+        metabat_done = "data/metabat_bins_2/done"
     conda:
-         "envs/metabat2.yaml"
+        "envs/metabat2.yaml"
     shell:
-         "jgi_summarize_bam_contig_depths --outputDepth data/combined_final.cov data/{input.bam} && " \
-         "mkdir -p data/metabat_bins_2 && " \
-         "metabat --seed 89 -l -i {input.fasta} -a data/combined_final.cov -o data/metabat_bins_2/binned_contigs && " \
-         "touch data/metabat_bins_2/done"
+        "jgi_summarize_bam_contig_depths --outputDepth data/combined_final.cov data/{input.bam} && " \
+        "mkdir -p data/metabat_bins_2 && " \
+        "metabat --seed 89 -l -i {input.fasta} -a data/combined_final.cov -o data/metabat_bins_2/binned_contigs && " \
+        "touch data/metabat_bins_2/done"
 
-#rule checkm:
+rule checkm:
+    input:
+        "data/metabat_bins_2/done"
+    output:
+        "data/checkm.out"
+    conda:
+        "envs/checkm.yaml"
+    threads:
+        config["max_threads"]
+    shell:
+        "checkm lineage_wf -t {threads} -x fa data/metabat_bins_2 data/checkm > testout.txt"
 
 
 
-#
-#
-# rule create_webpage:
+rule create_webpage:
+    input:
+        checkm_file = "data/checkm.out",
+        metabat_bins = "data/metabat_bins_2/done"
+    output:
+        "www/index.html"
+    threads:
+        config["max_threads"]
+    script:
+        "create_sdmass_webpage.py"

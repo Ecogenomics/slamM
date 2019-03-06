@@ -3,7 +3,7 @@
 ### Step down metagenome assembler
 
 
-### n.b. For ACE users older servers will not work.
+##### n.b. For ACE users older servers will not work.
 
 
 ### REQUIREMENTS

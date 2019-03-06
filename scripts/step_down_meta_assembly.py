@@ -6,13 +6,16 @@ def contig_coverage(bamfile, outfile, read_length):
     print(bamfile)
     print(read_length)
     print("samtools depth -a -l %s %s" % (read_length, bamfile))
-    proc = subprocess.Popen("samtools depth -aa -l %s %s" % (read_length, bamfile), shell=True, stdout=subprocess.PIPE)
+    process = subprocess.Popen("samtools depth -aa -l %s %s > %s.pb" % (read_length, bamfile, outfile), shell=True, stderr=subprocess.PIPE)
+    output = process.communicate()[0]
+    if process.returncode != 0:
+        raise subprocess.CalledProcessError(process.returncode, 'samtools depth', output=output)
     last_contig = None
     bases = 0
-    with open(outfile, 'w') as o:
-        for line in iter(proc.stdout.readline, ''):
+    with open(outfile, 'w') as o, open(outfile + '.pb') as f:
+        for line in f:
             contig, pos, depth = line.split()
-            if last_contig != contig:
+            if not last_contig is None and last_contig != contig:
                 o.write(last_contig + '\t' + str(bases/last_pos) + '\n')
                 bases = 0
             last_contig = contig
@@ -65,7 +68,10 @@ with open(snakemake.input.cutoffs) as f, open(snakemake.output[0], 'w') as o:
         prefix = os.path.join('data', 'wtdbg2assembly', 'w.' + read_length + '.' + percent[:4])
         if not os.path.exists(prefix + '.ctg.lay.gz') or overide:
             if float(percent) <= 0.9:
-                subprocess.Popen('seqtk sample %s %s | gzip > %s.ds.fastq.gz' % (curr_reads, percent, prefix), shell=True).wait()
+                process = subprocess.Popen('seqtk sample %s %s | gzip > %s.ds.fastq.gz' % (curr_reads, percent, prefix), shell=True, stderr=subprocess.PIPE)
+                output = process.communicate()[0]
+                if process.returncode != 0:
+                    raise subprocess.CalledProcessError(process.returncode, 'seqtk sample', output=output)
                 process = subprocess.Popen('wtdbg2 -t %s -i %s -fo %s -p 0 -k 15 -AS 2 -s 0.05 -L %s' % (snakemake.threads, prefix + ".ds.fastq.gz", prefix, read_length),
                                            shell=True, stderr=subprocess.PIPE)
             elif read_length == '500':

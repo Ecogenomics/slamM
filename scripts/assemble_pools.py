@@ -17,8 +17,8 @@ with open(snakemake.input.list) as f:
     for line in f:
         mb_bin, long_reads, length, bases_nano, short_reads, bases_ill = line.split()
         long_reads += '.fastq.gz'
-        short_reads_1 = short_reads + '.short.1.fastq.gz'
-        short_reads_2 = short_reads + '.short.2.fastq.gz'
+        short_reads_1 = short_reads + '.1.fastq.gz'
+        short_reads_2 = short_reads + '.2.fastq.gz'
         length, bases_nano, bases_ill = float(length), float(bases_nano), float(bases_ill)
         nano_cov = bases_nano / length
         ill_cov = bases_ill / length

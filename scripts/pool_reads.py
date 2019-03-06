@@ -96,11 +96,11 @@ else:
                 outreads[bin].add(read.query_name)
                 outbases[bin] += length
 
-for i in outreads:
-    with open("data/binned_reads/r" + i + '.short.list', 'w') as read_list:
-        for j in outreads[i]:
-            read_list.write(j + '\n')
-    out_dict[i] += ["data/binned_reads/r" + i + '.short.list', str(outbases[i])]
+    for i in outreads:
+        with open("data/binned_reads/r" + i + '.short.list', 'w') as read_list:
+            for j in outreads[i]:
+                read_list.write(j + '\n')
+        out_dict[i] += ["data/binned_reads/r" + i + '.short.list', str(outbases[i])]
 
 
 with open(snakemake.output.list, 'w') as o:
