@@ -97,7 +97,7 @@ rule step_down_meta_assembly:
         fastq = "data/long_reads.fastq.gz",
         cutoffs = "data/cutoffs.txt"
     params:
-        minimum_coverage = 60,
+        minimum_coverage = 30,
         long_only = config["short_reads_1"] == "none"
     output:
         "data/combined_assembly_long.fasta"
@@ -115,13 +115,14 @@ rule polish_sdmass:
     output:
         fasta = "data/combined_assembly_long.pol.fasta"
     params:
-        rounds = 2
+        rounds = 2,
+        maxcov = 300
     conda:
          "envs/racon.yaml"
     threads:
          config["max_threads"]
     script:
-         "scripts/polish_racon.py"
+         "scripts/racon_polish.py"
 
 
 # filter illumina reads that don't map to a user selected reference
@@ -381,7 +382,7 @@ rule racon_polish_final:
     threads:
          config["max_threads"]
     script:
-         "scripts/polish_racon.py"
+         "scripts/racon_polish.py"
 
 
 

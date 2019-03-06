@@ -2,10 +2,11 @@ import sys
 import os
 import subprocess
 import random
+import shutil
 
 
 out = "data/racon_polishing"
-reads = snakemake.input.reads
+reads = snakemake.input.fastq
 threads = 24
 max_cov = snakemake.params.maxcov
 
@@ -18,9 +19,9 @@ except FileExistsError:
     pass
 
 random.seed(89)
-reference = snakemake.input.reference
+reference = snakemake.input.fasta
 
-for rounds in range(snakemake.input.rounds):
+for rounds in range(snakemake.params.rounds):
     paf = os.path.join(out, 'alignment.%d.paf' % rounds)
     subprocess.Popen("minimap2 -t %d -x map-ont %s %s > %s" % (snakemake.threads, reference, reads, paf), shell=True).wait()
     cov_dict = {}
@@ -95,3 +96,5 @@ for rounds in range(snakemake.input.rounds):
                 if get_line:
                     o.write(line)
     reference = os.path.join(out, "combined.%d.pol.fa" % rounds)
+
+shutil.copy2(reference, snakemake.output.fasta)
