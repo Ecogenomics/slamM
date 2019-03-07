@@ -6,15 +6,27 @@ import random
 contig_bins = {}
 outlength = {}
 samfile = pysam.AlignmentFile(snakemake.input.long_bam, 'rb')
+gotten_contigs = set()
+maxbin = 0
 for bins in os.listdir(snakemake.input.metabat_done[:-4]):
     if not bins.startswith('binned_contigs') or bins == "binned_contigs.unbinned":
         continue
     bin = bins.split('.')[1]
+    if int(bin) > maxbin:
+        maxbin = int(bin)
     outlength[bin] = 0
     with open(os.path.join(snakemake.input.metabat_done[:-4], bins)) as f:
         for line in f:
             contig_bins[line.rstrip()] = bin
+            gotten_contigs.add(line.rstrip())
             outlength[bin] += samfile.get_reference_length(line.rstrip())
+
+for i in samfile.reference_names:
+    if not i in gotten_contigs and samfile.get_reference_length(i) >= 50000:
+        maxbin += 1
+        contig_bins[i] = str(maxbin)
+        outlength[maxbin] = samfile.get_reference_length(i)
+
 
 cutoff = 0.05
 outreads = {}

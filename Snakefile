@@ -359,6 +359,8 @@ rule assemble_pools:
         summary = "data/canu_assembly_summary.txt"
     conda:
         "envs/final_assembly.yaml"
+    threads:
+        config["max_threads"]
     script:
         "scripts/assemble_pools.py"
 

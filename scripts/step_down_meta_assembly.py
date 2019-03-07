@@ -45,7 +45,7 @@ def create_read_list(bamfile, outfile, contigs_to_filter):
             length = read.infer_read_length()
             if clipped_start/length <= cutoff and clipped_end/length <= cutoff and read.reference_name in contigs_to_filter:
                 mapped_full.add(read.query_name)
-            all_reads.add(read.query_name)
+        all_reads.add(read.query_name)
     out_set = all_reads - mapped_full
     with open(outfile, 'w') as o:
         for i in out_set:
@@ -91,7 +91,7 @@ with open(snakemake.input.cutoffs) as f, open(snakemake.output[0], 'w') as o:
         if not os.path.exists(prefix + '.fna') or overide:
             process = subprocess.Popen('wtpoa-cns -t %s -i %s.ctg.lay.gz -fo %s.fna' % (snakemake.threads, prefix, prefix),
                                        shell=True, stderr=subprocess.PIPE)
-            output = process.communicate()[0]
+            output = process.communicate()[0]ls
             if process.returncode != 0:
                 try:
                     os.remove(prefix + '.fna')
@@ -121,18 +121,19 @@ with open(snakemake.input.cutoffs) as f, open(snakemake.output[0], 'w') as o:
                 cov = float(cov)
                 if cov >= float(snakemake.params.minimum_coverage) or (read_length == '500' and snakemake.params.long_only):
                     high_cov_contigs.add(contig)
+        if high_cov_contigs == set():
+            continue
         if not os.path.exists(prefix + '.reads.list') or overide:
             create_read_list(prefix + '.sort.bam', prefix + '.reads.list', high_cov_contigs)
-
-        if not os.path.exists(prefix + '.fastq.gz') or overide:
-            process = subprocess.Popen('seqtk subseq %s %s.reads.list | gzip > %s.fastq.gz' % (curr_reads, prefix, prefix), shell=True, stderr=subprocess.PIPE)
-            output = process.communicate()[0]
-            if process.returncode != 0:
-                try:
-                    os.remove(prefix + '.fastq.gz')
-                except FileNotFoundError:
-                    pass
-                raise subprocess.CalledProcessError(process.returncode, 'seqtk', output=output)
+            if not os.path.exists(prefix + '.fastq.gz') or overide:
+                process = subprocess.Popen('seqtk subseq %s %s.reads.list | gzip > %s.fastq.gz' % (curr_reads, prefix, prefix), shell=True, stderr=subprocess.PIPE)
+                output = process.communicate()[0]
+                if process.returncode != 0:
+                    try:
+                        os.remove(prefix + '.fastq.gz')
+                    except FileNotFoundError:
+                        pass
+                    raise subprocess.CalledProcessError(process.returncode, 'seqtk', output=output)
 
         curr_reads = prefix + '.fastq.gz'
 
