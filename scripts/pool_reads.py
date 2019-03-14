@@ -8,6 +8,11 @@ outlength = {}
 samfile = pysam.AlignmentFile(snakemake.input.long_bam, 'rb')
 gotten_contigs = set()
 maxbin = 0
+outreads = {}
+outbases = {}
+outreads500 = {}
+outbases500 = {}
+
 for bins in os.listdir(snakemake.input.metabat_done[:-4]):
     if not bins.startswith('binned_contigs') or bins == "binned_contigs.unbinned":
         continue
@@ -15,24 +20,29 @@ for bins in os.listdir(snakemake.input.metabat_done[:-4]):
     if int(bin) > maxbin:
         maxbin = int(bin)
     outlength[bin] = 0
+    outreads[bin] = set()
+    outbases[bin] = 0
+    outreads500[bin] = set()
+    outbases500[bin] = 0
     with open(os.path.join(snakemake.input.metabat_done[:-4], bins)) as f:
         for line in f:
             contig_bins[line.rstrip()] = bin
             gotten_contigs.add(line.rstrip())
             outlength[bin] += samfile.get_reference_length(line.rstrip())
 
-for i in samfile.reference_names:
+for i in samfile.references:
     if not i in gotten_contigs and samfile.get_reference_length(i) >= 50000:
         maxbin += 1
         contig_bins[i] = str(maxbin)
-        outlength[maxbin] = samfile.get_reference_length(i)
+        outlength[str(maxbin)] = samfile.get_reference_length(i)
+        outreads[str(maxbin)] = set()
+        outbases[str(maxbin)] = 0
+        outreads500[str(maxbin)] = set()
+        outbases500[str(maxbin)] = 0
+
 
 
 cutoff = 0.05
-outreads = {}
-outbases = {}
-outreads500 = {}
-outbases500 = {}
 for read in samfile.fetch(until_eof=True):
     start = True
     if not read.cigartuples is None:
@@ -49,11 +59,6 @@ for read in samfile.fetch(until_eof=True):
         if read.reference_name in contig_bins:
             bin = contig_bins[read.reference_name]
             length = read.infer_read_length()
-            if not bin in outreads:
-                outreads[bin] = set()
-                outbases[bin] = 0
-                outreads500[bin] = set()
-                outbases500[bin] = 0
             if (clipped_start/length <= cutoff and clipped_end/length <= cutoff) or \
                 (clipped_start/length <= cutoff and read.reference_end > read.reference_length - 100) or \
                 (clipped_end/length <= cutoff and read.reference_start < 100):

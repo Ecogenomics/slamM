@@ -1,5 +1,6 @@
 import os
 import subprocess
+import sys
 
 
 bin_bases_ill_dict = {}
@@ -26,12 +27,16 @@ with open(snakemake.input.list) as f:
         nano_cov = bases_nano / length
         ill_cov = bases_ill / length
         if nano_cov > cov_cutoff_nano or ill_cov < cov_cutoff_ill:
-            out_assemblies.append('data/final_assemblies/%s_canu/meta.contigs.fasta' % mb_bin)
+            print("canu -d data/final_assemblies/%s_canu -p meta stopOnLowCoverage=0 maxThreads=%d"\
+            " useGrid=false genomeSize=%d -nanopore-raw %s" % (mb_bin, snakemake.threads, length, long_reads))
             process = subprocess.Popen("canu -d data/final_assemblies/%s_canu -p meta stopOnLowCoverage=5 maxThreads=%d"\
             " useGrid=false genomeSize=%d -nanopore-raw %s" % (mb_bin, snakemake.threads, length, long_reads), shell=True, stderr=subprocess.PIPE)
             output = process.communicate()[0]
             if process.returncode != 0:
-                raise subprocess.CalledProcessError(process.returncode, 'canu', output=output)
+                sys.stderr.write("Canu failed:\n" + output)
+                #raise subprocess.CalledProcessError(process.returncode, 'canu', output=output)
+            else:
+                out_assemblies.append('data/final_assemblies/%s_canu/meta.contigs.fasta' % mb_bin)
         else:
             out_assemblies.append('data/final_assemblies/%s_unicyc/contigs.fasta' % mb_bin)
             subprocess.Popen("unicycler -t %d -1 %s -2 %s -l %s -o data/final_assemblies/%s_unicyc" % (snakemake.threads, short_reads_1, short_reads_2, long_reads, mb_bin), shell=True).wait()

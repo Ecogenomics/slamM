@@ -29,7 +29,7 @@ def create_read_list(bamfile, outfile, contigs_to_filter):
     cutoff = 0.05
     mapped_full = set()
     all_reads = set()
-    for read in samfile.fetch():
+    for read in samfile.fetch(until_eof=True):
         start = True
         if not read.cigartuples is None:
             clipped_start = 0
@@ -46,6 +46,7 @@ def create_read_list(bamfile, outfile, contigs_to_filter):
             if clipped_start/length <= cutoff and clipped_end/length <= cutoff and read.reference_name in contigs_to_filter:
                 mapped_full.add(read.query_name)
         all_reads.add(read.query_name)
+    print(len(all_reads))
     out_set = all_reads - mapped_full
     with open(outfile, 'w') as o:
         for i in out_set:
@@ -91,7 +92,7 @@ with open(snakemake.input.cutoffs) as f, open(snakemake.output[0], 'w') as o:
         if not os.path.exists(prefix + '.fna') or overide:
             process = subprocess.Popen('wtpoa-cns -t %s -i %s.ctg.lay.gz -fo %s.fna' % (snakemake.threads, prefix, prefix),
                                        shell=True, stderr=subprocess.PIPE)
-            output = process.communicate()[0]ls
+            output = process.communicate()[0]
             if process.returncode != 0:
                 try:
                     os.remove(prefix + '.fna')

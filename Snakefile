@@ -195,9 +195,8 @@ rule filter_illumina_wtdbg2:
     threads:
          config["max_threads"]
     shell:
-        "minimap2 -ax sr -t {threads} {input.reference} {input.fastq} | gzip > data/short_vs_wtdbg2.sam.gz && "\
-        "zcat data/short_vs_wtdbg2.sam.gz | samtools view -b > data/short_vs_wtdbg2.bam &&"\
-        "samtools sort -o {output.bam} data/short_vs_wtdbg2.bam &&"\
+        "minimap2 -ax sr -t {threads} {input.reference} {input.fastq} |  samtools view -b | "\
+        "samtools sort -o {output.bam} - && samtools index {output.bam} &&"\
         "samtools bam2fq -f 12 {output.bam} | gzip > {output.fastq}"
 
 
@@ -234,10 +233,10 @@ rule process_combination_assembly:
     conda:
         "envs/minimap2.yaml"
     shell:
-        "minimap2 -ax sr -t {threads} -a {input.short_assembly} {input.illumina_reads} | samtools view -b > data/mega_assembly.bam &&" \
-        "samtools sort -o data/mega_assembly.sort.bam data/mega_assembly.bam && " \
-        "pilon -Xmx16000m --genome {input.short_assembly} --frags data/mega_assembly.bam --threads {threads} --output data/short_pilon_1.fa --fix bases &&"\
-        "pilon -Xmx16000m --genome {input.long_assembly} --frags data/short_vs_merged_assembly.sort.bam --threads {threads} --output data/long_pilon_1.fa --fix bases &&"\
+        "minimap2 -ax sr -t {threads} {input.short_assembly} {input.illumina_reads} | samtools view -b | "
+        "samtools sort -o data/mega_assembly.sort.bam - && samtools index data/mega_assembly.sort.bam && " \
+        "pilon -Xmx64000m --genome {input.short_assembly} --frags data/mega_assembly.sort.bam --threads {threads} --output data/short_pilon_1.fa --fix bases && "\
+        "pilon -Xmx64000m --genome {input.long_assembly} --frags {input.ill_vs_wtdg2_bam} --threads {threads} --output data/long_pilon_1.fa --fix bases && "\
         "samtools merge {output.bam} {input.ill_vs_wtdbg2_bam} data/mega_assembly.sort.bam && "\
         "cat data/long_pilon_1.fa data/short_pilon_1.fa > {output.fasta}"
 
@@ -254,7 +253,7 @@ rule process_long_only:
     threads:
         config["max_threads"]
     shell:
-        "minimap2 -t {threads} -ax map-ont -a {input.fasta} {input.reads} |  samtools view -b | " \
+        "minimap2 -t {threads} -ax map-ont {input.fasta} {input.reads} |  samtools view -b | " \
         "samtools sort -o {output.bam} - && samtools index {output.bam}"
 
 
