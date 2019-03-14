@@ -231,7 +231,7 @@ rule process_combination_assembly:
     threads:
         config["max_threads"]
     conda:
-        "envs/minimap2.yaml"
+        "envs/pilon.yaml"
     shell:
         "minimap2 -ax sr -t {threads} {input.short_assembly} {input.illumina_reads} | samtools view -b | "
         "samtools sort -o data/mega_assembly.sort.bam - && samtools index data/mega_assembly.sort.bam && " \
