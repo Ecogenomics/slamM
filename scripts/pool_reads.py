@@ -103,7 +103,7 @@ else:
     outbases = {}
     for read in samfile.fetch(until_eof=True):
         start = True
-        if read.is_proper_pair():
+        if read.is_proper_pair:
             if read.reference_name in contig_bins:
                 bin = contig_bins[read.reference_name]
                 length = read.infer_read_length()

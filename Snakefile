@@ -188,7 +188,7 @@ rule filter_illumina_wtdbg2:
         fastq = "data/short_reads.fastq.gz",
         reference = "data/combined_assembly_long.pol.fasta"
     output:
-        bam = "data/short_vs_wtdg2.sort.bam",
+        bam = "data/short_vs_wtdbg2.sort.bam",
         fastq = "data/short_reads.filt.fastq.gz"
     conda:
         "envs/minimap2.yaml"
@@ -224,7 +224,7 @@ rule process_combination_assembly:
         long_assembly = "data/combined_assembly_long.pol.fasta",
         short_assembly = "data/mega_assembly.fasta",
         illumina_reads = "data/short_reads.filt.fastq.gz",
-        ill_vs_wtdbg2_bam = "data/short_vs_wtdg2.sort.bam"
+        ill_vs_wtdbg2_bam = "data/short_vs_wtdbg2.sort.bam"
     output:
         fasta = "data/merged_assembly.fasta",
         bam = "data/short_vs_merged_assembly.sort.bam"
