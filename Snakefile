@@ -331,7 +331,7 @@ rule get_fastq_pool_combo:
     shell:
         "gawk '{{print $2}}' {input.list} | while read list; do seqtk subseq {input.long_reads} $list | gzip > $list.fastq.gz; done &&"\
         "gawk '{{print $5}}' {input.list} | while read list; do seqtk seq -1 {input.short_reads} | seqtk subseq - $list | gzip > $list.1.fastq.gz; done &&"\
-        "gawk '{{print $6}}' {input.list} | while read list; do seqtk seq -2 {input.short_reads} | seqtk subseq - $list | gzip > $list.2.fastq.gz; done &&"\
+        "gawk '{{print $5}}' {input.list} | while read list; do seqtk seq -2 {input.short_reads} | seqtk subseq - $list | gzip > $list.2.fastq.gz; done &&"\
         "touch data/binned_reads/done"
 
 
