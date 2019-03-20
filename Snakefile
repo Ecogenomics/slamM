@@ -236,7 +236,7 @@ rule process_combination_assembly:
         "minimap2 -ax sr -t {threads} {input.short_assembly} {input.illumina_reads} | samtools view -b | "
         "samtools sort -o data/mega_assembly.sort.bam - && samtools index data/mega_assembly.sort.bam && " \
         "pilon -Xmx64000m --genome {input.short_assembly} --frags data/mega_assembly.sort.bam --threads {threads} --output data/short_pilon_1 --fix bases && "\
-        "sed -i 's/_pilon//g data/short_pilon_1.fasta && "\
+        "sed -i 's/_pilon//g' data/short_pilon_1.fasta && "\
         "samtools merge {output.bam} {input.ill_vs_wtdbg2_bam} data/mega_assembly.sort.bam && "\
         "cat data/long_pilon_1.fasta data/short_pilon_1.fasta > {output.fasta}"
 
