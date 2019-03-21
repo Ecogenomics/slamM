@@ -309,7 +309,7 @@ rule align_long_reads_combo:
         fasta = "data/merged_assembly.fasta",
         reads = "data/long_reads.fastq.gz"
     output:
-        "data/long_reads_vs_comb_all.sort.bam"
+        bam = "data/long_reads_vs_comb_all.sort.bam"
     conda:
         "envs/minimap2.yaml"
     threads:
