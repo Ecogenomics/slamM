@@ -16,7 +16,11 @@ except FileExistsError:
 out_assemblies = []
 with open(snakemake.input.list) as f:
     for line in f:
-        mb_bin, long_reads, length, bases_nano, short_reads, bases_ill = line.split()
+        if len(line.split()) == 6:
+            mb_bin, long_reads, length, bases_nano, short_reads, bases_ill = line.split()
+        else:
+            mb_bin, long_reads, length, bases_nano = line.split()
+            short_reads, bases_ill = 'none', '0'
         long_reads += '.fastq.gz'
         long_reads = os.path.abspath(long_reads)
         short_reads_1 = short_reads + '.1.fastq.gz'
