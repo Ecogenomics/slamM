@@ -304,9 +304,24 @@ rule pool_reads_long:
 
 
 
+rule align_long_reads_combo:
+    input:
+        fasta = "data/merged_assembly.fasta",
+        reads = "data/long_reads.fastq.gz"
+    output:
+        "data/long_reads_vs_comb_all.sort.bam"
+    conda:
+        "envs/minimap2.yaml"
+    threads:
+        config["max_threads"]
+    shell:
+        "minimap2 -t {threads} -ax map-ont {input.fasta} {input.reads} |  samtools view -b | " \
+        "samtools sort -o {output.bam} - && samtools index {output.bam}"
+
+
 rule pool_reads_combo:
     input:
-        long_bam = "data/long_reads_vs_comb_long.sort.bam",
+        long_bam = "data/long_reads_vs_comb_all.sort.bam",
         short_bam = "data/short_vs_merged_assembly.sort.bam",
         metabat_done = "data/metabat_bins/done"
     output:
