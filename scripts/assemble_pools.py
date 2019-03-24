@@ -37,12 +37,12 @@ with open(snakemake.input.list) as f:
             " useGrid=false genomeSize=%d -nanopore-raw %s" % (mb_bin, snakemake.threads, length, long_reads), shell=True, stderr=subprocess.PIPE)
             output = process.communicate()[0]
             if process.returncode != 0:
-                sys.stderr.write("Canu failed:\n" + output)
+                sys.stderr.write("Canu failed:\n" + str(output))
                 #raise subprocess.CalledProcessError(process.returncode, 'canu', output=output)
             else:
                 out_assemblies.append('data/final_assemblies/%s_canu/meta.contigs.fasta' % mb_bin)
         else:
-            out_assemblies.append('data/final_assemblies/%s_unicyc/contigs.fasta' % mb_bin)
+            out_assemblies.append('data/final_assemblies/%s_unicyc/assembly.fasta' % mb_bin)
             subprocess.Popen("unicycler -t %d -1 %s -2 %s -l %s -o data/final_assemblies/%s_unicyc" % (snakemake.threads, short_reads_1, short_reads_2, long_reads, mb_bin), shell=True).wait()
 
 

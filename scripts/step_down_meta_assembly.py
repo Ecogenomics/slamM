@@ -126,15 +126,15 @@ with open(snakemake.input.cutoffs) as f, open(snakemake.output[0], 'w') as o:
             continue
         if not os.path.exists(prefix + '.reads.list') or overide:
             create_read_list(prefix + '.sort.bam', prefix + '.reads.list', high_cov_contigs)
-            if not os.path.exists(prefix + '.fastq.gz') or overide:
-                process = subprocess.Popen('seqtk subseq %s %s.reads.list | gzip > %s.fastq.gz' % (curr_reads, prefix, prefix), shell=True, stderr=subprocess.PIPE)
-                output = process.communicate()[0]
-                if process.returncode != 0:
-                    try:
-                        os.remove(prefix + '.fastq.gz')
-                    except FileNotFoundError:
-                        pass
-                    raise subprocess.CalledProcessError(process.returncode, 'seqtk', output=output)
+        if not os.path.exists(prefix + '.fastq.gz') or overide:
+            process = subprocess.Popen('seqtk subseq %s %s.reads.list | gzip > %s.fastq.gz' % (curr_reads, prefix, prefix), shell=True, stderr=subprocess.PIPE)
+            output = process.communicate()[0]
+            if process.returncode != 0:
+                try:
+                    os.remove(prefix + '.fastq.gz')
+                except FileNotFoundError:
+                    pass
+                raise subprocess.CalledProcessError(process.returncode, 'seqtk', output=output)
 
         curr_reads = prefix + '.fastq.gz'
 
