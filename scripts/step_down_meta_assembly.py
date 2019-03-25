@@ -66,7 +66,7 @@ with open(snakemake.input.cutoffs) as f, open(snakemake.output[0], 'w') as o:
     for line in f:
         read_length, percent = line.split()
         print(read_length, percent)
-        prefix = os.path.join('data', 'wtdbg2assembly', 'w.' + read_length + '.' + percent[:4])
+        prefix = os.path.join('data', 'wtdbg2assembly', 'w.' + read_length + '.' + percent[:5])
         if not os.path.exists(prefix + '.ctg.lay.gz') or overide:
             if float(percent) <= 0.9:
                 process = subprocess.Popen('seqtk sample %s %s | gzip > %s.ds.fastq.gz' % (curr_reads, percent, prefix), shell=True, stderr=subprocess.PIPE)

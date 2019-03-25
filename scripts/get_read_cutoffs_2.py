@@ -14,7 +14,7 @@ with open(snakemake.input[0]) as f:
         read_lengths.append(read_length)
     read_lengths.sort(reverse=True)
     bp_sum = sum(read_lengths)
-    y = [0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.75, 1.0]
+    y = [0.001, 0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.75, 1.0]
     print(bp_sum)
     max_read = 8000
     cutoffs = [i*bp_sum for i in y]
