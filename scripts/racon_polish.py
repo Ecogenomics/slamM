@@ -22,7 +22,7 @@ random.seed(89)
 reference = snakemake.input.fasta
 
 for rounds in range(snakemake.params.rounds):
-    paf = os.path.join(out, 'alignment.%d.paf' % rounds)
+    paf = os.path.join(out, 'alignment.%s.%d.paf' % (snakemake.params.prefix, rounds)
     subprocess.Popen("minimap2 -t %d -x map-ont %s %s > %s" % (snakemake.threads, reference, reads, paf), shell=True).wait()
     cov_dict = {}
     with open(paf) as f:
