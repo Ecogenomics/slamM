@@ -73,12 +73,15 @@ with open(snakemake.input.cutoffs) as f, open(snakemake.output[0], 'w') as o:
                 output = process.communicate()[0]
                 if process.returncode != 0:
                     raise subprocess.CalledProcessError(process.returncode, 'seqtk sample', output=output)
+                print('wtdbg2 -t %s -i %s -fo %s -p 0 -k 15 -AS 2 -s 0.05 -L %s' % (snakemake.threads, prefix + ".ds.fastq.gz", prefix, read_length))
                 process = subprocess.Popen('wtdbg2 -t %s -i %s -fo %s -p 0 -k 15 -AS 2 -s 0.05 -L %s' % (snakemake.threads, prefix + ".ds.fastq.gz", prefix, read_length),
                                            shell=True, stderr=subprocess.PIPE)
             elif read_length == '500':
+                print('wtdbg2 -t %s -p 0 -k 15 -AS 2 -s 0.05 --edge-min 2 --rescue-low-cov- edges -i %s -fo %s -L %s' % (snakemake.threads, curr_reads, prefix, read_length))
                 process = subprocess.Popen('wtdbg2 -t %s -p 0 -k 15 -AS 2 -s 0.05 --edge-min 2 --rescue-low-cov- edges -i %s -fo %s -L %s' % (snakemake.threads, curr_reads, prefix, read_length),
                                            shell=True, stderr=subprocess.PIPE)
             else:
+                print('wtdbg2 -t %s -i %s -fo %s -p 0 -k 15 -AS 2 -s 0.05 -L %s' % (snakemake.threads, curr_reads, prefix, read_length))
                 process = subprocess.Popen('wtdbg2 -t %s -i %s -fo %s -p 0 -k 15 -AS 2 -s 0.05 -L %s' % (snakemake.threads, curr_reads, prefix, read_length),
                                            shell=True, stderr=subprocess.PIPE)
             output = process.communicate()[0]
@@ -98,7 +101,7 @@ with open(snakemake.input.cutoffs) as f, open(snakemake.output[0], 'w') as o:
                     os.remove(prefix + '.fna')
                 except FileNotFoundError:
                     pass
-                raise subprocess.CalledProcessError(process.returncode, 'wtdbg-cns', output=output)
+                raise subprocess.CalledProcessError(process.returncode, 'wtpoa-cns', output=output)
         if os.stat(prefix + '.fna').st_size == 0:
             continue
         if not os.path.exists(prefix + '.sort.bam.bai') or overide:

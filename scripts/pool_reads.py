@@ -90,7 +90,7 @@ for i in outreads:
         else:
             reads = outreads[i]
             bases = outbases[i]
-        for j in outreads[i]:
+        for j in reads:
             read_list.write(j + '\n')
     out_dict[i] = [i, "data/binned_reads/r" + i + '.long.list', str(outlength[i]), str(bases)]
 

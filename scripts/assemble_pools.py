@@ -43,7 +43,8 @@ with open(snakemake.input.list) as f:
                 out_assemblies.append('data/final_assemblies/%s_canu/meta.contigs.fasta' % mb_bin)
         else:
             out_assemblies.append('data/final_assemblies/%s_unicyc/assembly.fasta' % mb_bin)
-            subprocess.Popen("unicycler -t %d -1 %s -2 %s -l %s -o data/final_assemblies/%s_unicyc" % (snakemake.threads, short_reads_1, short_reads_2, long_reads, mb_bin), shell=True).wait()
+            if not os.path.exists('data/final_assemblies/%s_unicyc/assembly.fasta' % mb_bin):
+                subprocess.Popen("unicycler -t %d -1 %s -2 %s -l %s -o data/final_assemblies/%s_unicyc" % (snakemake.threads, short_reads_1, short_reads_2, long_reads, mb_bin), shell=True).wait()
 
 
 

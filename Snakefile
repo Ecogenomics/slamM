@@ -117,6 +117,7 @@ rule polish_sdmass:
         fasta = "data/combined_assembly_long.pol.fasta"
     params:
         rounds = 2,
+        prefix = "first",
         maxcov = 300
     conda:
          "envs/racon.yaml"
@@ -214,7 +215,8 @@ rule megahit_assembly:
     conda:
         "envs/megahit.yaml"
     shell:
-        "megahit -t {threads} --12 {input.fastq} -o data/mega_assembly && ln data/mega_assembly/final.contigs.fa data/mega_assembly.fasta"
+        "if LC_ALL=C gzip -l {input.fastq} | awk 'NR==2 {{exit($2!=0)}}'; then touch {output.fasta}; " \
+        "else megahit -t {threads} --12 {input.fastq} -o data/mega_assembly && ln data/mega_assembly/final.contigs.fa data/mega_assembly.fasta; fi"
 
 
 
@@ -394,6 +396,8 @@ rule racon_polish_final:
     output:
         fasta = "data/combined_final_assemblies.pol.fasta"
     params:
+        prefix = "second",
+        maxcov = 300,
         rounds = 2
     conda:
         "envs/racon.yaml"
@@ -405,20 +409,24 @@ rule racon_polish_final:
 
 rule final_cov_combo:
     input:
-        reads = "data/short_reads.fastq.gz",
+        short_reads = "data/short_reads.fastq.gz",
+        long_reads = "data/long_reads.fastq.gz",
         fasta = "data/combined_final_assemblies.pol.fasta"
     output:
         bam = "data/final_cov.sort.bam",
+        long_bam = "data/long_reads_for_web.bam",
         fasta = "data/final_contigs.fasta"
     conda:
         "envs/pilon.yaml"
     threads:
         config["max_threads"]
     shell:
-        "minimap2 -t {threads} -ax sr -a {input.fasta} {input.reads} |  samtools view -b | " \
+        "minimap2 -t {threads} -ax sr -a {input.fasta} {input.short_reads} |  samtools view -b | " \
         "samtools sort -o {output.bam} - && samtools index {output.bam} && " \
         "pilon -Xmx64000m --genome {input.fasta} --frags {output.bam} --threads {threads} --output data/final_contigs --fix bases && "\
-        "sed -i 's/_pilon//g' data/final_contigs.fasta"
+        "sed -i 's/_pilon//g' data/final_contigs.fasta && " \
+        "minimap2 -t {threads} -ax map-ont -a data/final_contigs.fasta {input.long_reads} |  samtools view -b | " \
+        "samtools sort -o {output.long_bam} - && samtools index {output.long_bam}"
 
 
 
@@ -451,7 +459,7 @@ rule metabat_binning_2:
     shell:
         "jgi_summarize_bam_contig_depths --outputDepth data/combined_final.cov data/{input.bam} && " \
         "mkdir -p data/metabat_bins_2 && " \
-        "metabat --seed 89 -l -i {input.fasta} -a data/combined_final.cov -o data/metabat_bins_2/binned_contigs && " \
+        "metabat --seed 89 -i {input.fasta} -a data/combined_final.cov -o data/metabat_bins_2/binned_contigs && " \
         "touch data/metabat_bins_2/done"
 
 rule checkm:
@@ -468,13 +476,92 @@ rule checkm:
 
 
 
+
 rule create_webpage:
     input:
         checkm_file = "data/checkm.out",
-        metabat_bins = "data/metabat_bins_2/done"
+        metabat_bins = "data/metabat_bins_2/done",
+        fasta = "data/combined_final_assemblies.pol.fasta"
     output:
         "www/index.html"
     threads:
         config["max_threads"]
     script:
         "create_sdmass_webpage.py"
+
+
+#############################
+# processing barcoded reads #
+#############################
+
+
+rule process_unsorted_reads:
+    input:
+         nano_dir = config["nanopore_dir"]
+    output:
+         "processed_reads/barcoding_summary.txt"
+    params:
+         barcode_kit = "EXP-PBC001"
+    threads:
+         config["max_threads"]
+    shell:
+         "module load guppy && guppy_barcoder -t {threads} --barcode_kits {params.barcode_kit} --input_path {input.nano_dir}/fastq_pass processed_reads"
+
+
+rule split_reads:
+    input:
+         reads = config["nanopore_dir"],
+         barcode_summary = "processed_reads/barcoding_summary.txt"
+    output:
+         "processed_reads/read_count.tsv"
+    script:
+         "sort_barcoded_reads.py"
+
+
+
+####################
+# isolate assembly #
+####################
+
+
+rule assemble_reads_canu:
+    input:
+        reads = config["long_reads"]
+    output:
+        contigs = "isolate/canu/isolate.contigs.fasta"
+    conda:
+        "envs/final_assembly.yaml"
+    params:
+        genome_size = config["genome_size"]
+    threads:
+        config["max_threads"]
+    shell:
+        "canu -d isolate/canu -p isolate stopOnLowCoverage=5 maxThreads={threads} useGrid=false genomeSize=%d -nanopore-raw %s"
+
+rule polish_isolate_racon:
+    input:
+        reads = config["long_reads"],
+        contigs = "isolate/canu/isolate.contigs.fasta"
+    conda:
+        "envs/racon.yaml"
+    threads:
+        config["max_threads"]
+    output:
+        fasta = "isolate/isolate.polished.contigs.fasta"
+    script:
+        "racon_polish.py"
+
+rule polish_isolate_pilon:
+    input:
+        reads = config["short_reads"],
+        fasta = "isolate/isolate.polished.contigs.fasta"
+    output:
+        fasta = "isolate/final_assembly.fasta",
+    threads:
+        config["max_threads"]
+    conda:
+        "envs/pilon.yaml"
+    shell:
+        "minimap2 -ax sr -t {threads} {input.fasta} {input.illumina_reads} | samtools view -b | " \
+        "samtools sort -o isolate/final_assembly.sort.bam - && samtools index data/final_assembly.sort.bam && " \
+        "pilon -Xmx64000m --genome {input.fasta} --frags isolate/final_assembly.sort.bam --threads {threads} --output data/final_assembly --fix bases"
