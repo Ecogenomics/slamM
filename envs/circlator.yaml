@@ -1,0 +1,4 @@
+channels:
+  - bioconda
+dependencies:
+  - circlator = 1.5.5-2

@@ -528,7 +528,8 @@ rule assemble_reads_canu:
     input:
         reads = config["long_reads"]
     output:
-        contigs = "isolate/canu/isolate.contigs.fasta"
+        contigs = "isolate/canu/isolate.contigs.fasta",
+        reads = "isolate/canu/isolate.correctedReads.fasta.gz"
     conda:
         "envs/final_assembly.yaml"
     params:
@@ -538,6 +539,7 @@ rule assemble_reads_canu:
     shell:
         "canu -d isolate/canu -p isolate stopOnLowCoverage=5 maxThreads={threads} useGrid=false genomeSize=%d -nanopore-raw %s"
 
+
 rule polish_isolate_racon:
     input:
         reads = config["long_reads"],
@@ -546,22 +548,71 @@ rule polish_isolate_racon:
         "envs/racon.yaml"
     threads:
         config["max_threads"]
+    params:
+        prefix = "second",
+        maxcov = 1000,
+        rounds = 4
     output:
-        fasta = "isolate/isolate.polished.contigs.fasta"
+        fasta = "isolate/isolate.pol.rac.fasta"
     script:
         "racon_polish.py"
+
+
+rule polish_isolate_medaka:
+    input:
+        reads = config["long_reads"],
+        contigs = "isolate/canu/isolate.pol.rac.fasta"
+    conda:
+        "envs/medaka.yaml"
+    threads:
+        config["max_threads"]
+    output:
+        fasta = "isolate/isolate.pol.med.fasta"
+    shell:
+        "medaka_consensus -i {input.reads} -d {input.contigs} -o isolate -t {threads} -m 94"
+
 
 rule polish_isolate_pilon:
     input:
         reads = config["short_reads"],
-        fasta = "isolate/isolate.polished.contigs.fasta"
+        fasta = "isolate/isolate.pol.med.fasta"
     output:
-        fasta = "isolate/final_assembly.fasta",
+        fasta = "isolate/isolate.pol.pil.fasta",
     threads:
         config["max_threads"]
     conda:
         "envs/pilon.yaml"
     shell:
-        "minimap2 -ax sr -t {threads} {input.fasta} {input.illumina_reads} | samtools view -b | " \
+        "minimap2 -ax sr -t {threads} {input.fasta} {input.reads} | samtools view -b | " \
+        "samtools sort -o isolate/pilon.sort.bam - && samtools index data/pilon.sort.bam && " \
+        "pilon -Xmx64000m --genome {input.fasta} --frags isolate/pilon.sort.bam --threads {threads} --output data/isolate.pol.pil --fix bases"
+
+
+rule polish_isolate_racon_ill:
+    input:
+        reads = config["short_reads"],
+        fasta = "isolate/isolate.pol.pil.fasta"
+    output:
+        fasta = "isolate/isolate.pol.fin.fasta",
+    threads:
+        config["max_threads"]
+    conda:
+        "envs/pilon.yaml"
+    shell:
+        "minimap2 -ax sr -t {threads} {input.fasta} {input.reads} | samtools view -b | " \
         "samtools sort -o isolate/final_assembly.sort.bam - && samtools index data/final_assembly.sort.bam && " \
-        "pilon -Xmx64000m --genome {input.fasta} --frags isolate/final_assembly.sort.bam --threads {threads} --output data/final_assembly --fix bases"
+        "racon -t {threads} -u {reads} data/final_assembly.sort.bam {input.fasta} > {output.fasta}"
+
+
+rule circlator:
+    input:
+        fasta = "isolate/isolate.pol.fin.fasta",
+        reads = "isolate/canu/isolate.correctedReads.fasta.gz"
+    output:
+        fasta = "isolate/circlator/06.fixstart.fasta"
+    threads:
+        config["max_threads"]
+    conda:
+        "envs/circlator.yaml"
+    shell:
+        "circlator all {input.fasta} {input.reads} isolate/circlator"

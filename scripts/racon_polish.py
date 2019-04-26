@@ -75,7 +75,7 @@ for rounds in range(snakemake.params.rounds):
         for i in included_reads:
             o.write(i + '\n')
     subprocess.Popen("seqtk subseq %s %s/reads.%d.lst | gzip > %s/reads.%d.fastq.gz" % (reads, out, rounds, out, rounds), shell=True).wait()
-    subprocess.Popen("racon -t %d -u %s/reads.%d.fastq.gz %s/filtered.%d.paf %s/filtered.%d.fa"
+    subprocess.Popen("racon -m 8 -x -6 -g -8 -w 500 -t %d -u %s/reads.%d.fastq.gz %s/filtered.%d.paf %s/filtered.%d.fa"
                      " > %s/filtered.%d.pol.fa" % (threads, out, rounds, out, rounds, out, rounds, out, rounds), shell=True).wait()
 
     with open(os.path.join(out, "combined.%d.pol.fa" % rounds), "w") as o:

@@ -37,7 +37,7 @@ with open(snakemake.input.list) as f:
             " useGrid=false genomeSize=%d -nanopore-raw %s" % (mb_bin, snakemake.threads, length, long_reads), shell=True, stderr=subprocess.PIPE)
             output = process.communicate()[0]
             if process.returncode != 0:
-                sys.stderr.write("Canu failed:\n" + str(output))
+                sys.stderr.write("Canu failed:\n" + str(output) + '\n')
                 #raise subprocess.CalledProcessError(process.returncode, 'canu', output=output)
             else:
                 out_assemblies.append('data/final_assemblies/%s_canu/meta.contigs.fasta' % mb_bin)
