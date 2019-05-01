@@ -1,4 +1,4 @@
 channels:
   - bioconda
 dependencies:
-  - checkm-genome = 1.0.13
+  - nanoplot = 1.20.0

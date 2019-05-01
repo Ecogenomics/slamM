@@ -457,7 +457,7 @@ rule metabat_binning_2:
     conda:
         "envs/metabat2.yaml"
     shell:
-        "jgi_summarize_bam_contig_depths --outputDepth data/combined_final.cov data/{input.bam} && " \
+        "jgi_summarize_bam_contig_depths --outputDepth data/combined_final.cov {input.bam} && " \
         "mkdir -p data/metabat_bins_2 && " \
         "metabat --seed 89 -i {input.fasta} -a data/combined_final.cov -o data/metabat_bins_2/binned_contigs && " \
         "touch data/metabat_bins_2/done"
@@ -472,22 +472,47 @@ rule checkm:
     threads:
         config["max_threads"]
     shell:
-        "checkm lineage_wf -t {threads} -x fa data/metabat_bins_2 data/checkm > checkm.out"
+        "checkm lineage_wf -t {threads} -x fa data/metabat_bins_2 data/checkm > data/checkm.out"
 
 
+rule fastqc:
+    input:
+        "data/short_reads.fastq.gz"
+    output:
+        "www/short_reads_fastqc.html"
+    conda:
+        "envs/fastqc.yaml"
+    threads:
+        config["max_threads"]
+    shell:
+        "fastqc -o www {input}"
 
+
+rule nanoplot:
+    input:
+        "data/long_reads.fastq.gz"
+    output:
+        "www/nanoplot/longReadsNanoPlot-report.html"
+    conda:
+        "envs/nanoplot.yaml"
+    threads:
+        config["max_threads"]
+    shell:
+        "NanoPlot -o www/nanoplot -p longReads --fastq {input}"
 
 rule create_webpage:
     input:
         checkm_file = "data/checkm.out",
         metabat_bins = "data/metabat_bins_2/done",
-        fasta = "data/combined_final_assemblies.pol.fasta"
+        fasta = "data/combined_final_assemblies.pol.fasta",
+        long_reads_qc_html = "www/nanoplot/longReadsNanoPlot-report.html",
+        short_reads_qc_html = "www/short_reads_fastqc.html"
     output:
         "www/index.html"
     threads:
         config["max_threads"]
     script:
-        "create_sdmass_webpage.py"
+        "scripts/create_sdmass_webpage.py"
 
 
 #############################
@@ -515,7 +540,7 @@ rule split_reads:
     output:
          "processed_reads/read_count.tsv"
     script:
-         "sort_barcoded_reads.py"
+         "scripts/sort_barcoded_reads.py"
 
 
 
@@ -537,13 +562,13 @@ rule assemble_reads_canu:
     threads:
         config["max_threads"]
     shell:
-        "canu -d isolate/canu -p isolate stopOnLowCoverage=5 maxThreads={threads} useGrid=false genomeSize=%d -nanopore-raw %s"
+        "canu -d isolate/canu -p isolate maxThreads={threads} useGrid=false genomeSize={params.genome_size} -nanopore-raw {input.reads}"
 
 
 rule polish_isolate_racon:
     input:
-        reads = config["long_reads"],
-        contigs = "isolate/canu/isolate.contigs.fasta"
+        fastq = config["long_reads"],
+        fasta = "isolate/canu/isolate.contigs.fasta"
     conda:
         "envs/racon.yaml"
     threads:
@@ -555,26 +580,29 @@ rule polish_isolate_racon:
     output:
         fasta = "isolate/isolate.pol.rac.fasta"
     script:
-        "racon_polish.py"
+        "scripts/racon_polish.py"
 
 
 rule polish_isolate_medaka:
     input:
         reads = config["long_reads"],
-        contigs = "isolate/canu/isolate.pol.rac.fasta"
+        contigs = "isolate/isolate.pol.rac.fasta"
     conda:
         "envs/medaka.yaml"
     threads:
         config["max_threads"]
+    params:
+        model = config["guppy_model"]
     output:
         fasta = "isolate/isolate.pol.med.fasta"
     shell:
-        "medaka_consensus -i {input.reads} -d {input.contigs} -o isolate -t {threads} -m 94"
+        "medaka_consensus -i {input.reads} -d {input.contigs} -o isolate/medaka/ -t {threads} -m {params.model} && " \
+        "cp isolate/medaka/consensus.fasta {output.fasta}"
 
 
 rule polish_isolate_pilon:
     input:
-        reads = config["short_reads"],
+        reads = "data/short_reads.fastq.gz",
         fasta = "isolate/isolate.pol.med.fasta"
     output:
         fasta = "isolate/isolate.pol.pil.fasta",
@@ -584,13 +612,13 @@ rule polish_isolate_pilon:
         "envs/pilon.yaml"
     shell:
         "minimap2 -ax sr -t {threads} {input.fasta} {input.reads} | samtools view -b | " \
-        "samtools sort -o isolate/pilon.sort.bam - && samtools index data/pilon.sort.bam && " \
-        "pilon -Xmx64000m --genome {input.fasta} --frags isolate/pilon.sort.bam --threads {threads} --output data/isolate.pol.pil --fix bases"
+        "samtools sort -o isolate/pilon.sort.bam - && samtools index isolate/pilon.sort.bam && " \
+        "pilon -Xmx64000m --genome {input.fasta} --frags isolate/pilon.sort.bam --threads {threads} --output isolate/isolate.pol.pil --fix bases"
 
 
 rule polish_isolate_racon_ill:
     input:
-        reads = config["short_reads"],
+        reads = "data/short_reads.fastq.gz",
         fasta = "isolate/isolate.pol.pil.fasta"
     output:
         fasta = "isolate/isolate.pol.fin.fasta",
@@ -599,9 +627,10 @@ rule polish_isolate_racon_ill:
     conda:
         "envs/pilon.yaml"
     shell:
-        "minimap2 -ax sr -t {threads} {input.fasta} {input.reads} | samtools view -b | " \
-        "samtools sort -o isolate/final_assembly.sort.bam - && samtools index data/final_assembly.sort.bam && " \
-        "racon -t {threads} -u {reads} data/final_assembly.sort.bam {input.fasta} > {output.fasta}"
+        """zcat {input.reads} | awk '{{if (NR % 8 == 1) {{print $1 "/1"}} else if (NR % 8 == 5) {{print $1 "/2"}} 
+        else if (NR % 4 == 3){{print "+"}} else {{print $0}} }}' | gzip > data/short_reads_racon.fastq.gz &&
+        minimap2 -x sr -t {threads} {input.fasta} data/short_reads_racon.fastq.gz | gzip > isolate/final_assembly.paf.gz &&
+        racon -t {threads} -u data/short_reads_racon.fastq.gz isolate/final_assembly.paf.gz {input.fasta} > {output.fasta}"""
 
 
 rule circlator:
@@ -609,10 +638,10 @@ rule circlator:
         fasta = "isolate/isolate.pol.fin.fasta",
         reads = "isolate/canu/isolate.correctedReads.fasta.gz"
     output:
-        fasta = "isolate/circlator/06.fixstart.fasta"
+        fasta = "isolate/completed_assembly.fasta"
     threads:
         config["max_threads"]
     conda:
         "envs/circlator.yaml"
     shell:
-        "circlator all {input.fasta} {input.reads} isolate/circlator"
+        "circlator all {input.fasta} {input.reads} isolate/circlator && cp isolate/circlator/06.fixstart.fasta {output.fasta}"

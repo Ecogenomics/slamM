@@ -10,3 +10,9 @@ short_reads_2:
     none
 max_threads:
     24
+nanopore_dir:
+    none
+guppy_model:
+    r941_flip213
+genome_size:
+    5000000

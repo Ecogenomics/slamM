@@ -7,7 +7,6 @@ import shutil
 
 out = "data/racon_polishing"
 reads = snakemake.input.fastq
-threads = 24
 max_cov = snakemake.params.maxcov
 
 if not os.path.exists(reads):
@@ -22,7 +21,8 @@ random.seed(89)
 reference = snakemake.input.fasta
 
 for rounds in range(snakemake.params.rounds):
-    paf = os.path.join(out, 'alignment.%s.%d.paf' % (snakemake.params.prefix, rounds)
+    paf = os.path.join(out, 'alignment.%s.%d.paf') % (snakemake.params.prefix, rounds)
+
     subprocess.Popen("minimap2 -t %d -x map-ont %s %s > %s" % (snakemake.threads, reference, reads, paf), shell=True).wait()
     cov_dict = {}
     with open(paf) as f:
@@ -76,7 +76,7 @@ for rounds in range(snakemake.params.rounds):
             o.write(i + '\n')
     subprocess.Popen("seqtk subseq %s %s/reads.%d.lst | gzip > %s/reads.%d.fastq.gz" % (reads, out, rounds, out, rounds), shell=True).wait()
     subprocess.Popen("racon -m 8 -x -6 -g -8 -w 500 -t %d -u %s/reads.%d.fastq.gz %s/filtered.%d.paf %s/filtered.%d.fa"
-                     " > %s/filtered.%d.pol.fa" % (threads, out, rounds, out, rounds, out, rounds, out, rounds), shell=True).wait()
+                     " > %s/filtered.%d.pol.fa" % (snakemake.threads, out, rounds, out, rounds, out, rounds, out, rounds), shell=True).wait()
 
     with open(os.path.join(out, "combined.%d.pol.fa" % rounds), "w") as o:
         with open(os.path.join(out, "filtered.%d.pol.fa" % rounds)) as f:
