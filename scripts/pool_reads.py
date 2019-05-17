@@ -30,20 +30,9 @@ for bins in os.listdir(snakemake.input.metabat_done[:-4]):
             gotten_contigs.add(line.rstrip())
             outlength[bin] += samfile.get_reference_length(line.rstrip())
 
-for i in samfile.references:
-    if not i in gotten_contigs and samfile.get_reference_length(i) >= 50000:
-        maxbin += 1
-        contig_bins[i] = str(maxbin)
-        outlength[str(maxbin)] = samfile.get_reference_length(i)
-        outreads[str(maxbin)] = set()
-        outbases[str(maxbin)] = 0
-        outreads500[str(maxbin)] = set()
-        outbases500[str(maxbin)] = 0
 
 
-
-cutoff = 0.05
-for read in samfile.fetch(until_eof=True):
+cutoff = 0.05`
     start = True
     if not read.cigartuples is None:
         clipped_start = 0
@@ -61,35 +50,22 @@ for read in samfile.fetch(until_eof=True):
             length = read.infer_read_length()
             if (clipped_start/length <= cutoff and clipped_end/length <= cutoff) or \
                 (clipped_start/length <= cutoff and read.reference_end > read.reference_length - 100) or \
-                (clipped_end/length <= cutoff and read.reference_start < 100):
+                (clipped_end/length <= cutoff and read.reference_start < 100) or \
+                (read.reference_start < 100 and read.reference_end > read.reference_length - 100):
                 outreads[bin].add(read.query_name)
                 outbases[bin] += length
-                if length >= 500:
-                    outreads500[bin].add(read.query_name)
-                    outbases500[bin] += length
 
 try:
     os.makedirs("data/binned_reads")
 except FileExistsError:
     pass
 
-min_cov_500 = 200
-top_cov = 300
 
 out_dict = {}
 for i in outreads:
     with open("data/binned_reads/r" + i + '.long.list', 'w') as read_list:
-        coverage500 =  outbases500[i] / outlength[i]
-        if coverage500 >= top_cov:
-            fraction_reads_to_get = top_cov/ coverage500
-            reads = random.sample(outreads500[i], int(len(outreads500[i]) * fraction_reads_to_get))
-            bases = int(fraction_reads_to_get * outbases500[i])
-        elif coverage500 >= min_cov_500:
-            reads = outreads500[i]
-            bases = outbases500[i]
-        else:
-            reads = outreads[i]
-            bases = outbases[i]
+        reads = outreads[i]
+        bases = outbases[i]
         for j in reads:
             read_list.write(j + '\n')
     out_dict[i] = [i, "data/binned_reads/r" + i + '.long.list', str(outlength[i]), str(bases)]
@@ -112,7 +88,6 @@ else:
                     outbases[bin] = 0
                 outreads[bin].add(read.query_name)
                 outbases[bin] += length
-
     for i in outreads:
         with open("data/binned_reads/r" + i + '.short.list', 'w') as read_list:
             for j in outreads[i]:

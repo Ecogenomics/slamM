@@ -13,6 +13,6 @@ max_threads:
 nanopore_dir:
     none
 guppy_model:
-    r941_flip213
+    r941_flip243
 genome_size:
     5000000

@@ -69,65 +69,58 @@ rule copy_reads:
             shell("cat {input.fastq} | gzip > {output}")
 
 
-# use seqtk to get read lengths
-rule get_read_lengths:
+
+rule flye_assembly:
     input:
-        "data/long_reads.fastq.gz"
+        fastq = "data/long_reads.fastq.gz"
     output:
-        "data/long_read_stats.txt"
+        fasta = "data/flye/assembly.fasta",
+        info = "data/flye/assembly_info.txt"
     conda:
-        "envs/seqtk.yaml"
+        "envs/flye.yaml"
+    threads:
+        config["max_threads"]
     shell:
-        "seqtk fqchk {input} > {output}"
-
-# from the seqtk file of read lengths, decide on cutoffs to use for the step down metagenome assembly
-rule get_read_cutoffs:
-    input:
-        "data/long_read_stats.txt"
-    output:
-        "data/cutoffs.txt"
-    params:
-        "10"
-    script:
-        "scripts/get_read_cutoffs_2.py"
+        "flye --nano-raw {input.fastq} --meta -o data/flye -t {threads} -g 200m"
 
 
-# peform the step down metagenome assembly
-rule step_down_meta_assembly:
+rule polish_metagenome_racon:
     input:
         fastq = "data/long_reads.fastq.gz",
-        cutoffs = "data/cutoffs.txt"
-    params:
-        minimum_coverage = 30,
-        long_only = config["short_reads_1"] == "none"
-    output:
-        "data/combined_assembly_long.fasta"
+        fasta = "data/flye/assembly.fasta"
     conda:
-        "envs/sdmass.yaml"
+        "envs/racon.yaml"
     threads:
-         config["max_threads"]
+        config["max_threads"]
+    params:
+        prefix = "racon",
+        maxcov = 1000,
+        rounds = 4
+    output:
+        fasta = "data/assembly.pol.rac.fasta"
     script:
-        "scripts/step_down_meta_assembly.py"
+        "scripts/racon_polish.py"
 
-rule polish_sdmass:
+
+rule polish_metagenome_medaka:
     input:
-        fastq = "data/long_reads.fastq.gz",
-        fasta = "data/combined_assembly_long.fasta"
-    output:
-        fasta = "data/combined_assembly_long.pol.fasta"
-    params:
-        rounds = 2,
-        prefix = "first",
-        maxcov = 300
+        reads = config["long_reads"],
+        contigs = "data/assembly.pol.rac.fasta"
     conda:
-         "envs/racon.yaml"
+        "envs/medaka.yaml"
     threads:
-         config["max_threads"]
-    script:
-         "scripts/racon_polish.py"
+        config["max_threads"]
+    params:
+        model = config["guppy_model"]
+    output:
+        fasta = "data/assembly.pol.med.fasta"
+    shell:
+        "medaka_consensus -i {input.reads} -d {input.contigs} -o data/medaka/ -t {threads} -m {params.model} && " \
+        "cp data/medaka/consensus.fasta {output.fasta}"
 
 
-# filter illumina reads that don't map to a user selected reference
+
+### Steps if illumina data exists
 rule filter_illumina_ref:
     input:
         fastq_1 = config["short_reads_1"],
@@ -184,13 +177,74 @@ rule ill_copy_reads_interleaved:
             shell("cat {input.fastq} | gzip > {output}")
 
 
-# filter illumina reada against the nanopore wtdbg2 assemblies
-rule filter_illumina_wtdbg2:
+rule polish_isolate_pilon:
     input:
-        fastq = "data/short_reads.fastq.gz",
-        reference = "data/combined_assembly_long.pol.fasta"
+        reads = "data/short_reads.fastq.gz",
+        fasta = "data/assembly.pol.med.fasta"
     output:
-        bam = "data/short_vs_wtdbg2.sort.bam",
+        fasta = "data/assembly.pol.pil.fasta",
+        bam = "data/pilon.sort.bam"
+    threads:
+        config["max_threads"]
+    conda:
+        "envs/pilon.yaml"
+    shell:
+        "minimap2 -ax sr -t {threads} {input.fasta} {input.reads} | samtools view -b | " \
+        "samtools sort -o {output.bam} - && samtools {output.bam} && " \
+        "pilon -Xmx64000m --genome {input.fasta} --frags data/pilon.sort.bam --threads {threads} --output data/assembly.pol.pil --fix bases"
+
+
+rule polish_isolate_racon_ill:
+    input:
+        reads = "data/short_reads.fastq.gz",
+        fasta = "data/assembly.pol.pil.fasta"
+    output:
+        fasta = "data/assembly.pol.fin.fasta"
+    threads:
+        config["max_threads"]
+    conda:
+        "envs/pilon.yaml"
+    shell:
+        """zcat {input.reads} | awk '{{if (NR % 8 == 1) {{print $1 "/1"}} else if (NR % 8 == 5) {{print $1 "/2"}} 
+        else if (NR % 4 == 3){{print "+"}} else {{print $0}} }}' | gzip > data/short_reads_racon.fastq.gz &&
+        minimap2 -x sr -t {threads} {input.fasta} data/short_reads_racon.fastq.gz | gzip > data/final_assembly.paf.gz &&
+        racon -t {threads} -u data/short_reads_racon.fastq.gz data/final_assembly.paf.gz {input.fasta} > {output.fasta}"""
+
+
+rule get_high_cov_contigs:
+    input:
+        info = "data/flye/assembly_info.txt",
+        fasta = "data/flye/assembly.fasta"
+    output:
+        fasta = "data/flye_high_cov.fasta"
+    params:
+        min_cov = 20.0
+    run:
+        with open(input.info) as f:
+            f.readline()
+            high_cov_set = set()
+            for line in f:
+                if float(line.split()[2]) >= params.min_cov:
+                    high_cov_set.add(line.split()[0])
+        with open(input.fasta) as f, open(output.fasta, 'w') as o:
+            write_line = False
+            for line in f:
+                if line.startswith('>') and line.split()[0][1:] in high_cov_set:
+                    write_line = True
+                elif line.startswith('>'):
+                    write_line = False
+                if write_line:
+                    o.write(line)
+
+
+
+# filter illumina reads against the nanopore assembly
+rule filter_illumina_assembly:
+    input:
+        reference = "data/flye_high_cov.fasta",
+        fastq = "data/short_reads.fastq.gz"
+    output:
+        bam = "data/sr_vs_long.sort.bam",
         fastq = "data/short_reads.filt.fastq.gz"
     conda:
         "envs/minimap2.yaml"
@@ -219,151 +273,67 @@ rule megahit_assembly:
         "else megahit -t {threads} --12 {input.fastq} -o data/mega_assembly && ln data/mega_assembly/final.contigs.fa data/mega_assembly.fasta; fi"
 
 
-
-
-
-rule process_combination_assembly:
+rule metabat_binning_short:
     input:
-        long_assembly = "data/combined_assembly_long.pol.fasta",
-        short_assembly = "data/mega_assembly.fasta",
-        illumina_reads = "data/short_reads.filt.fastq.gz",
-        ill_vs_wtdbg2_bam = "data/short_vs_wtdbg2.sort.bam"
-    output:
-        fasta = "data/merged_assembly.fasta",
-        bam = "data/short_vs_merged_assembly.sort.bam"
-    threads:
-        config["max_threads"]
-    conda:
-        "envs/pilon.yaml"
-    shell:
-        "minimap2 -ax sr -t {threads} {input.short_assembly} {input.illumina_reads} | samtools view -b | " \
-        "samtools sort -o data/mega_assembly.sort.bam - && samtools index data/mega_assembly.sort.bam && " \
-        "pilon -Xmx64000m --genome {input.long_assembly} --frags {input.ill_vs_wtdbg2_bam} --threads {threads} --output data/long_pilon_1 --fix bases && "\
-        "sed -i 's/_pilon//g' data/long_pilon_1.fasta && "\
-        "samtools merge {output.bam} {input.ill_vs_wtdbg2_bam} data/mega_assembly.sort.bam && "\
-        "cat data/long_pilon_1.fasta {input.short_assembly} > {output.fasta}"
-
-
-
-rule process_long_only:
-    input:
-        fasta = "data/combined_assembly_long.pol.fasta",
-        reads = "data/long_reads.fastq.gz"
-    output:
-        bam = "data/long_reads_vs_comb_long.sort.bam"
-    conda:
-        "envs/minimap2.yaml"
-    threads:
-        config["max_threads"]
-    shell:
-        "minimap2 -t {threads} -ax map-ont {input.fasta} {input.reads} |  samtools view -b | " \
-        "samtools sort -o {output.bam} - && samtools index {output.bam}"
-
-
-
-rule metabat_binning_long:
-    input:
-         bam = "data/long_reads_vs_comb_long.sort.bam",
-         fasta = "data/combined_assembly_long.pol.fasta"
+         fastq = "data/short_reads.filt.fastq.gz",
+         fasta = "data/mega_assembly.fasta"
     output:
          metabat_done = "data/metabat_bins/done"
     conda:
          "envs/metabat2.yaml"
     shell:
-         "jgi_summarize_bam_contig_depths --percentIdentity 75 --outputDepth data/merged_contigs.cov {input.bam} && " \
+         "minimap2 -ax sr -t {threads} {input.fasta} {input.fastq} |  samtools view -b | "\
+         "samtools sort -o data/short_vs_mega.bam - && samtools index {output.bam} && "\
+         "jgi_summarize_bam_contig_depths --outputDepth data/megahit.cov data/short_vs_mega.bam && " \
          "mkdir -p data/metabat_bins && " \
-         "metabat --seed 89 -l -i {input.fasta} -a data/merged_contigs.cov -o data/metabat_bins/binned_contigs && " \
+         "metabat --seed 89 -l -i {input.fasta} -a data/megahit.cov -o data/metabat_bins/binned_contigs && " \
          "touch data/metabat_bins/done"
 
-
-
-rule metabat_binning_combined:
+rule map_long_mega:
     input:
-         bam = "data/short_vs_merged_assembly.sort.bam",
-         fasta = "data/merged_assembly.fasta"
+        fastq = "data/long_reads.fastq.gz",
+        fasta = "data/mega_assembly.fasta"
     output:
-         metabat_done = "data/metabat_bins/done"
-    conda:
-         "envs/metabat2.yaml"
-    shell:
-         "jgi_summarize_bam_contig_depths --outputDepth data/merged_contigs.cov {input.bam} && " \
-         "mkdir -p data/metabat_bins && " \
-         "metabat --seed 89 -l -i {input.fasta} -a data/merged_contigs.cov -o data/metabat_bins/binned_contigs && " \
-         "touch data/metabat_bins/done"
-
-
-rule pool_reads_long:
-    input:
-        long_bam = "data/long_reads_vs_comb_long.sort.bam",
-        metabat_done = "data/metabat_bins/done"
-    output:
-        list = "data/list_of_lists.txt"
-    conda:
-        "envs/pysam.yaml"
-    params:
-        long_only = True
-    script:
-        "scripts/pool_reads.py"
-
-
-
-rule align_long_reads_combo:
-    input:
-        fasta = "data/merged_assembly.fasta",
-        reads = "data/long_reads.fastq.gz"
-    output:
-        bam = "data/long_reads_vs_comb_all.sort.bam"
-    conda:
-        "envs/minimap2.yaml"
+        bam = "data/long_vs_mega.bam"
     threads:
         config["max_threads"]
+    conda:
+        "envs/minimap2.yaml"
     shell:
-        "minimap2 -t {threads} -ax map-ont {input.fasta} {input.reads} |  samtools view -b | " \
+        "minimap2 -t {threads} -ax map-ont -a {input.fasta} {input.fastq} |  samtools view -b | " \
         "samtools sort -o {output.bam} - && samtools index {output.bam}"
 
 
-rule pool_reads_combo:
+rule pool_reads:
     input:
-        long_bam = "data/long_reads_vs_comb_all.sort.bam",
-        short_bam = "data/short_vs_merged_assembly.sort.bam",
+        long_bam = "data/long_vs_mega.bam",
+        short_bam = "data/short_vs_mega.bam",
         metabat_done = "data/metabat_bins/done"
     output:
         list = "data/list_of_lists.txt"
     conda:
         "envs/pysam.yaml"
-    params:
-        long_only = False
     script:
         "scripts/pool_reads.py"
 
 
-rule get_fastq_pool_combo:
+rule get_read_pools:
     input:
-        list = "data/list_of_lists.txt",
         long_reads = "data/long_reads.fastq.gz",
-        short_reads = "data/short_reads.fastq.gz"
+        short_reads = "data/short_reads.fastq.gz",
+        list = "data/list_of_lists.txt"
     output:
-        fastq_list = "data/binned_reads/done"
+        "data/binned_reads/done"
     conda:
-        "envs/seqtk.yaml"
+         "envs/mfqe.yaml"
     shell:
-        "gawk '{{print $2}}' {input.list} | while read list; do seqtk subseq {input.long_reads} $list | gzip > $list.fastq.gz; done &&"\
-        "gawk '{{if ($5) print $5}}' {input.list} | while read list; do seqtk seq -1 {input.short_reads} | seqtk subseq - $list | gzip > $list.1.fastq.gz; done &&"\
-        "gawk '{{if ($5) print $5}}' {input.list} | while read list; do seqtk seq -2 {input.short_reads} | seqtk subseq - $list | gzip > $list.2.fastq.gz; done &&"\
-        "touch data/binned_reads/done"
+         'eval $(printf "zcat {input.long_reads} | mfqe --fastq-read-name-lists "; for file in data/binned_reads/*.long.list; do printf "$file "; done;'\
+         ' printf " --output-fastq-files "; for file in *.long.list; do printf "$file[0,-6].fastq.gz "; done; printf "\n")\n' \
+         'eval $(printf "seqtk seq -1 {input.short_reads} | mfqe --fastq-read-name-lists "; for file in data/binned_reads/*.short.list; do printf "$file "; done;'\
+         ' printf " --output-fastq-files "; for file in *.short.list; do printf "$file[0,-6].1.fastq.gz "; done; printf "\n")' \
+         'eval $(printf "seqtk seq -2 {input.short_reads} | mfqe --fastq-read-name-lists "; for file in data/binned_reads/*.short.list; do printf "$file "; done;'\
+         ' printf " --output-fastq-files "; for file in *.short.list; do printf "$file[0,-6].2.fastq.gz "; done; printf "\n")'
 
-
-rule get_fastq_pool_long:
-    input:
-        list = "data/list_of_lists.txt",
-        reads = "data/long_reads.fastq.gz"
-    output:
-        fastq_list = "data/binned_reads/done"
-    conda:
-        "envs/seqtk.yaml"
-    shell:
-        "gawk '{{print $2}}' {input.list} | while read list; do seqtk subseq {input.reads} $list | gzip > $list.fastq.gz; done &&"\
-        "touch data/binned_reads/done"
 
 
 rule assemble_pools:
@@ -381,37 +351,12 @@ rule assemble_pools:
     script:
         "scripts/assemble_pools.py"
 
-rule cat_pools:
-    input:
-        summary = "data/canu_assembly_summary.txt"
-    output:
-        fasta = "data/combined_final_assemblies.fasta"
-    script:
-        "scripts/concat_canu_unicyc.py"
-
-rule racon_polish_final:
-    input:
-        fastq = "data/long_reads.fastq.gz",
-        fasta = "data/combined_final_assemblies.fasta"
-    output:
-        fasta = "data/combined_final_assemblies.pol.fasta"
-    params:
-        prefix = "second",
-        maxcov = 300,
-        rounds = 2
-    conda:
-        "envs/racon.yaml"
-    threads:
-        config["max_threads"]
-    script:
-        "scripts/racon_polish.py"
-
 
 rule final_cov_combo:
     input:
         short_reads = "data/short_reads.fastq.gz",
         long_reads = "data/long_reads.fastq.gz",
-        fasta = "data/combined_final_assemblies.pol.fasta"
+        fasta = "data/combined_final_assemblies.medaka.fasta"
     output:
         bam = "data/final_cov.sort.bam",
         long_bam = "data/long_reads_for_web.bam",
@@ -421,20 +366,14 @@ rule final_cov_combo:
     threads:
         config["max_threads"]
     shell:
-        "minimap2 -t {threads} -ax sr -a {input.fasta} {input.short_reads} |  samtools view -b | " \
-        "samtools sort -o {output.bam} - && samtools index {output.bam} && " \
-        "pilon -Xmx64000m --genome {input.fasta} --frags {output.bam} --threads {threads} --output data/final_contigs --fix bases && "\
-        "sed -i 's/_pilon//g' data/final_contigs.fasta && " \
         "minimap2 -t {threads} -ax map-ont -a data/final_contigs.fasta {input.long_reads} |  samtools view -b | " \
         "samtools sort -o {output.long_bam} - && samtools index {output.long_bam}"
-
-
 
 
 rule final_cov_long:
     input:
         reads = "data/long_reads.fastq.gz",
-        fasta = "data/combined_final_assemblies.pol.fasta"
+        fasta = "data/combined_final_assemblies.medaka.fasta"
     output:
         bam = "data/final_cov.sort.bam",
         fasta = "data/final_contigs.fasta"
@@ -451,7 +390,7 @@ rule final_cov_long:
 rule metabat_binning_2:
     input:
         bam = "data/final_cov.sort.bam",
-        fasta = "data/combined_final_assemblies.pol.fasta"
+        fasta = "data/final_contigs.fasta"
     output:
         metabat_done = "data/metabat_bins_2/done"
     conda:
@@ -500,13 +439,25 @@ rule nanoplot:
     shell:
         "NanoPlot -o www/nanoplot -p longReads --fastq {input}"
 
+rule prodigal:
+    input:
+        fasta = "data/final_contigs.fasta"
+    output:
+        "data/genes.gff"
+    conda:
+        "envs/prodigal.yaml"
+    shell:
+        "prodigal -i {input.fasta} -f gff -o {output} -p meta"
+
+
 rule create_webpage:
     input:
         checkm_file = "data/checkm.out",
         metabat_bins = "data/metabat_bins_2/done",
         fasta = "data/combined_final_assemblies.pol.fasta",
         long_reads_qc_html = "www/nanoplot/longReadsNanoPlot-report.html",
-        short_reads_qc_html = "www/short_reads_fastqc.html"
+        short_reads_qc_html = "www/short_reads_fastqc.html",
+        genes_gff = "data/genes.gff"
     output:
         "www/index.html"
     threads:
@@ -522,26 +473,29 @@ rule create_webpage:
 
 rule process_unsorted_reads:
     input:
-         nano_dir = config["nanopore_dir"]
+         nano_dir = config["nanopore_dir"],
+         html = "QC/read_qc.html"
     output:
-         "processed_reads/barcoding_summary.txt"
-    params:
-         barcode_kit = "EXP-PBC001"
+         "barcoded_reads"
     threads:
          config["max_threads"]
+    conda:
+         "envs/qcat.yaml"
     shell:
-         "module load guppy && guppy_barcoder -t {threads} --barcode_kits {params.barcode_kit} --input_path {input.nano_dir}/fastq_pass processed_reads"
+         "cat {input.nano_dir}/fastq_pass/* | qcat -b {output}"
 
 
-rule split_reads:
+
+rule read_qc:
     input:
-         reads = config["nanopore_dir"],
+         nanodir = config["nanopore_dir"],
          barcode_summary = "processed_reads/barcoding_summary.txt"
     output:
-         "processed_reads/read_count.tsv"
-    script:
-         "scripts/sort_barcoded_reads.py"
-
+         "QC/read_qc.html"
+    conda:
+        "envs/pycoQC.yaml"
+    shell:
+         "pycoQC -f {input.nanodir}/sequencing_summary/*sequencing_summary.txt -o {output}"
 
 
 ####################
@@ -553,8 +507,7 @@ rule assemble_reads_canu:
     input:
         reads = config["long_reads"]
     output:
-        contigs = "isolate/canu/isolate.contigs.fasta",
-        reads = "isolate/canu/isolate.correctedReads.fasta.gz"
+        contigs = "isolate/flye/assembly.fasta"
     conda:
         "envs/final_assembly.yaml"
     params:
@@ -562,7 +515,7 @@ rule assemble_reads_canu:
     threads:
         config["max_threads"]
     shell:
-        "canu -d isolate/canu -p isolate maxThreads={threads} useGrid=false genomeSize={params.genome_size} -nanopore-raw {input.reads}"
+        "flye --nano-raw {input.reads} --threads {threads} -o isolate/flye -g {params.genome_size}"
 
 
 rule polish_isolate_racon:
@@ -636,7 +589,7 @@ rule polish_isolate_racon_ill:
 rule circlator:
     input:
         fasta = "isolate/isolate.pol.fin.fasta",
-        reads = "isolate/canu/isolate.correctedReads.fasta.gz"
+        reads = config["long_reads"]
     output:
         fasta = "isolate/completed_assembly.fasta"
     threads:
