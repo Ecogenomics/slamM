@@ -6,11 +6,6 @@ workdir: config["workdir"]
 
 ruleorder: map_reads_ref > copy_reads
 ruleorder: filter_illumina_ref > filter_illumina_ref_interleaved > ill_copy_reads > ill_copy_reads_interleaved
-ruleorder: process_combination_assembly > process_long_only
-ruleorder: metabat_binning_combined > metabat_binning_long
-ruleorder: pool_reads_combo > pool_reads_long
-ruleorder: get_fastq_pool_combo > get_fastq_pool_long
-ruleorder: final_cov_combo > final_cov_long
 
 
 
