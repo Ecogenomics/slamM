@@ -1,6 +1,5 @@
 import pysam
 import os
-import random
 
 
 contig_bins = {}

@@ -177,7 +177,7 @@ rule ill_copy_reads_interleaved:
             shell("cat {input.fastq} | gzip > {output}")
 
 
-rule polish_isolate_pilon:
+rule polish_meta_pilon:
     input:
         reads = "data/short_reads.fastq.gz",
         fasta = "data/assembly.pol.med.fasta"
@@ -194,7 +194,7 @@ rule polish_isolate_pilon:
         "pilon -Xmx64000m --genome {input.fasta} --frags data/pilon.sort.bam --threads {threads} --output data/assembly.pol.pil --fix bases"
 
 
-rule polish_isolate_racon_ill:
+rule polish_meta_racon_ill:
     input:
         reads = "data/short_reads.fastq.gz",
         fasta = "data/assembly.pol.pil.fasta"
