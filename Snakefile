@@ -273,7 +273,8 @@ rule metabat_binning_short:
          fastq = "data/short_reads.filt.fastq.gz",
          fasta = "data/mega_assembly.fasta"
     output:
-         metabat_done = "data/metabat_bins/done"
+         metabat_done = "data/metabat_bins/done",
+         bam = "data/short_vs_mega.bam"
     conda:
          "envs/metabat2.yaml"
     shell:
