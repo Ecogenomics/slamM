@@ -485,7 +485,6 @@ rule process_unsorted_reads:
 rule read_qc:
     input:
          nanodir = config["nanopore_dir"],
-         barcode_summary = "processed_reads/barcoding_summary.txt"
     output:
          "QC/read_qc.html"
     conda:
