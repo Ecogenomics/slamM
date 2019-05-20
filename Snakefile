@@ -471,15 +471,15 @@ rule process_unsorted_reads:
     input:
          html = "QC/read_qc.html"
     output:
-         "barcoded_reads"
+         directory("barcoded_reads")
     threads:
          config["max_threads"]
     conda:
          "envs/qcat.yaml"
     params:
-         config["fastq_pass_dir"]
+         fastq_pass = config["fastq_pass_dir"]
     shell:
-         "cat {input.sequence_summary}/fastq_pass/* | qcat -b {output}"
+         "cat {params.fastq_pass}/* | qcat -b {output}"
 
 
 
