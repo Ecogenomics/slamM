@@ -485,13 +485,13 @@ rule process_unsorted_reads:
 
 rule read_qc:
     input:
-         sequence_summary = config["sequencing_summary"]
+         sequence_summary = config["sequence_summary"]
     output:
          "QC/read_qc.html"
     conda:
         "envs/pycoQC.yaml"
     shell:
-         "pycoQC -f {input.nano_dir}/sequencing_summary/*sequencing_summary.txt -o {output}"
+         "pycoQC -f {input.sequence_summary} -o {output}"
 
 
 ####################
