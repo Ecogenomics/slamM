@@ -469,7 +469,7 @@ rule create_webpage:
 
 rule process_unsorted_reads:
     input:
-         nano_dir = config["nanopore_dir"],
+         nano_dir = directory(config["nanopore_dir"]),
          html = "QC/read_qc.html"
     output:
          "barcoded_reads"
@@ -484,13 +484,13 @@ rule process_unsorted_reads:
 
 rule read_qc:
     input:
-         nanodir = config["nanopore_dir"],
+         nano_dir = directory(config["nanopore_dir"])
     output:
          "QC/read_qc.html"
     conda:
         "envs/pycoQC.yaml"
     shell:
-         "pycoQC -f {input.nanodir}/sequencing_summary/*sequencing_summary.txt -o {output}"
+         "pycoQC -f {input.nano_dir}/sequencing_summary/*sequencing_summary.txt -o {output}"
 
 
 ####################
