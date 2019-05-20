@@ -469,7 +469,6 @@ rule create_webpage:
 
 rule process_unsorted_reads:
     input:
-         nano_dir = directory(config["nanopore_dir"]),
          html = "QC/read_qc.html"
     output:
          "barcoded_reads"
@@ -477,14 +476,16 @@ rule process_unsorted_reads:
          config["max_threads"]
     conda:
          "envs/qcat.yaml"
+    params:
+         config["fastq_pass_dir"]
     shell:
-         "cat {input.nano_dir}/fastq_pass/* | qcat -b {output}"
+         "cat {input.sequence_summary}/fastq_pass/* | qcat -b {output}"
 
 
 
 rule read_qc:
     input:
-         nano_dir = directory(config["nanopore_dir"])
+         sequence_summary = config["sequencing_summary"]
     output:
          "QC/read_qc.html"
     conda:
