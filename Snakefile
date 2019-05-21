@@ -6,8 +6,7 @@ workdir: config["workdir"]
 
 ruleorder: map_reads_ref > copy_reads
 ruleorder: filter_illumina_ref > filter_illumina_ref_interleaved > ill_copy_reads > ill_copy_reads_interleaved
-
-
+ruleorder: polish_isolate_pilon > skip_illumina_polish
 
 # Map nanopore reads to reference genome you want to filter
 rule map_reads_ref:
@@ -499,7 +498,7 @@ rule read_qc:
 ####################
 
 
-rule assemble_reads_canu:
+rule assemble_reads_flye:
     input:
         reads = config["long_reads"]
     output:
@@ -580,6 +579,14 @@ rule polish_isolate_racon_ill:
         else if (NR % 4 == 3){{print "+"}} else {{print $0}} }}' | gzip > data/short_reads_racon.fastq.gz &&
         minimap2 -x sr -t {threads} {input.fasta} data/short_reads_racon.fastq.gz | gzip > isolate/final_assembly.paf.gz &&
         racon -t {threads} -u data/short_reads_racon.fastq.gz isolate/final_assembly.paf.gz {input.fasta} > {output.fasta}"""
+
+rule skip_illumina_polish:
+    input:
+        fasta = "isolate/isolate.pol.med.fasta"
+    output:
+        fasta = "isolate/isolate.pol.fin.fasta"
+    shell:
+        "cp {input.fasta} {output.fasta}"
 
 
 rule circlator:
