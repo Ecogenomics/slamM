@@ -6,7 +6,7 @@ workdir: config["workdir"]
 
 ruleorder: map_reads_ref > copy_reads
 ruleorder: filter_illumina_ref > filter_illumina_ref_interleaved > ill_copy_reads > ill_copy_reads_interleaved
-ruleorder: polish_isolate_pilon > skip_illumina_polish
+ruleorder: polish_isolate_racon_ill > skip_illumina_polish
 
 # Map nanopore reads to reference genome you want to filter
 rule map_reads_ref:
@@ -516,7 +516,7 @@ rule assemble_reads_flye:
 rule polish_isolate_racon:
     input:
         fastq = config["long_reads"],
-        fasta = "isolate/canu/isolate.contigs.fasta"
+        contigs = "isolate/flye/assembly.fasta"
     conda:
         "envs/racon.yaml"
     threads:
