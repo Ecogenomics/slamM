@@ -504,7 +504,7 @@ rule assemble_reads_flye:
     output:
         contigs = "isolate/flye/assembly.fasta"
     conda:
-        "envs/final_assembly.yaml"
+        "envs/flye.yaml"
     params:
         genome_size = config["genome_size"]
     threads:

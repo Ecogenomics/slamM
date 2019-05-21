@@ -29,9 +29,9 @@ for bins in os.listdir(snakemake.input.metabat_done[:-4]):
             gotten_contigs.add(line.rstrip())
             outlength[bin] += samfile.get_reference_length(line.rstrip())
 
+cutoff = 0.05
 
-
-cutoff = 0.05`
+for read in samfile.fetch(until_eof=True):
     start = True
     if not read.cigartuples is None:
         clipped_start = 0
