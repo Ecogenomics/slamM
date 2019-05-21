@@ -69,29 +69,25 @@ for i in outreads:
             read_list.write(j + '\n')
     out_dict[i] = [i, "data/binned_reads/r" + i + '.long.list', str(outlength[i]), str(bases)]
 
-if snakemake.params.long_only:
-    for i in out_dict:
-        out_dict[i] += ['none', '0']
-else:
-    samfile = pysam.AlignmentFile(snakemake.input.short_bam, 'rb')
-    outreads = {}
-    outbases = {}
-    for read in samfile.fetch(until_eof=True):
-        start = True
-        if read.is_proper_pair:
-            if read.reference_name in contig_bins:
-                bin = contig_bins[read.reference_name]
-                length = read.infer_read_length()
-                if not bin in outreads:
-                    outreads[bin] = set()
-                    outbases[bin] = 0
-                outreads[bin].add(read.query_name)
-                outbases[bin] += length
-    for i in outreads:
-        with open("data/binned_reads/r" + i + '.short.list', 'w') as read_list:
-            for j in outreads[i]:
-                read_list.write(j + '\n')
-        out_dict[i] += ["data/binned_reads/r" + i + '.short.list', str(outbases[i])]
+samfile = pysam.AlignmentFile(snakemake.input.short_bam, 'rb')
+outreads = {}
+outbases = {}
+for read in samfile.fetch(until_eof=True):
+    start = True
+    if read.is_proper_pair:
+        if read.reference_name in contig_bins:
+            bin = contig_bins[read.reference_name]
+            length = read.infer_read_length()
+            if not bin in outreads:
+                outreads[bin] = set()
+                outbases[bin] = 0
+            outreads[bin].add(read.query_name)
+            outbases[bin] += length
+for i in outreads:
+    with open("data/binned_reads/r" + i + '.short.list', 'w') as read_list:
+        for j in outreads[i]:
+            read_list.write(j + '\n')
+    out_dict[i] += ["data/binned_reads/r" + i + '.short.list', str(outbases[i])]
 
 
 with open(snakemake.output.list, 'w') as o:
