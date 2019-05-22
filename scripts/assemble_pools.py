@@ -28,19 +28,19 @@ with open(snakemake.input.list) as f:
 
 
 
-with open(snakemake.output.summary, 'w') as o:
+with open(snakemake.fasta, 'w') as o:
     o.write('assembly\tmax_contig\tcontigs\n')
+    count = 0
     for i in out_assemblies:
         if not os.path.exists(i):
             with open(i[:-14] + 'unicycler.log') as f:
                 lastline = f.readlines()[-1]
                 if lastline.startswith("Error: SPAdes failed to produce assemblies. See spades_assembly/assembly/spades.log for more info."):
-                   continue
+                    continue
         with open(i) as assembly:
-            length_list = []
             for line in assembly:
                 if line.startswith('>'):
-                    length_list.append(0)
+                    count += 1
+                    o.write('>unicycler_' + str(count) + '\n')
                 else:
-                    length_list[-1] += len(line.rstrip())
-        o.write('\t'.join([i.split('/')[2], str(max(length_list)), str(len(length_list)), str(sum(length_list)), i]) + '\n')
+                    o.write(line)

@@ -7,6 +7,7 @@ workdir: config["workdir"]
 ruleorder: map_reads_ref > copy_reads
 ruleorder: filter_illumina_ref > filter_illumina_ref_interleaved > ill_copy_reads > ill_copy_reads_interleaved
 ruleorder: polish_isolate_racon_ill > skip_illumina_polish
+ruleorder: final_cov_combo > final_cov_long
 
 # Map nanopore reads to reference genome you want to filter
 rule map_reads_ref:
@@ -338,7 +339,7 @@ rule assemble_pools:
     threads:
         config["max_threads"]
     output:
-        summary = "data/canu_assembly_summary.txt"
+        fasta = "data/unicycler_combined.fa"
     conda:
         "envs/final_assembly.yaml"
     threads:
@@ -351,35 +352,44 @@ rule final_cov_combo:
     input:
         short_reads = "data/short_reads.fastq.gz",
         long_reads = "data/long_reads.fastq.gz",
-        fasta = "data/combined_final_assemblies.medaka.fasta"
+        unicyc_fasta = "data/unicycler_combined.fa",
+        flye_fasta = "data/flye/assembly.fasta"
     output:
-        bam = "data/final_cov.sort.bam",
-        long_bam = "data/long_reads_for_web.bam",
-        fasta = "data/final_contigs.fasta"
+        short_bam = "data/final_short.sort.bam",
+        fasta = "data/final_contigs.fasta",
+        long_bam = "data/final_long.sort.bam",
+        coverage = "data/final.cov"
     conda:
-        "envs/pilon.yaml"
+        "envs/metabat2.yaml"
     threads:
         config["max_threads"]
     shell:
-        "minimap2 -t {threads} -ax map-ont -a data/final_contigs.fasta {input.long_reads} |  samtools view -b | " \
-        "samtools sort -o {output.long_bam} - && samtools index {output.long_bam}"
+        "cat {input.flye_fasta} {input.unicyc_fasta} > {output.fasta} && " \
+        "minimap2 -t {threads} -ax map-ont -a {output.fasta} {input.long_reads} |  samtools view -b | " \
+        "samtools sort -o {output.long_bam} - && samtools index {output.long_bam} && " \
+        "minimap2 -ax sr -t {threads} {output.fasta} {input.short_reads} |  samtools view -b | "\
+        "samtools sort -o {output.short_bam} - && samtools index {output.short_bam} && "\
+        "jgi_summarize_bam_contig_depths --outputDepth data/final.cov {output.short_bam}"
 
 
 rule final_cov_long:
     input:
-        reads = "data/long_reads.fastq.gz",
-        fasta = "data/combined_final_assemblies.medaka.fasta"
+        long_reads = "data/long_reads.fastq.gz",
+        fasta = "data/flye/assembly.fasta"
     output:
-        bam = "data/final_cov.sort.bam",
-        fasta = "data/final_contigs.fasta"
+        fasta = "data/final_contigs.fasta",
+        long_bam = "data/final_long.sort.bam",
+        coverage = "data/final.cov"
     conda:
-        "envs/minimap2.yaml"
+        "envs/metabat2.yaml"
     threads:
         config["max_threads"]
     shell:
-        "minimap2 -t {threads} -ax map-ont -a {input.fasta} {input.reads} |  samtools view -b | " \
+        "minimap2 -t {threads} -ax map-ont -a {input.fasta} {input.long_reads} |  samtools view -b | " \
         "samtools sort -o {output.bam} - && samtools index {output.bam} && " \
-        "ln {input.fasta} {output.fasta}"
+        "ln {input.fasta} {output.fasta} && " \
+        "jgi_summarize_bam_contig_depths --outputDepth data/final.cov {output.long_bam}"
+
 
 
 rule metabat_binning_2:
@@ -391,9 +401,8 @@ rule metabat_binning_2:
     conda:
         "envs/metabat2.yaml"
     shell:
-        "jgi_summarize_bam_contig_depths --outputDepth data/combined_final.cov {input.bam} && " \
         "mkdir -p data/metabat_bins_2 && " \
-        "metabat --seed 89 -i {input.fasta} -a data/combined_final.cov -o data/metabat_bins_2/binned_contigs && " \
+        "metabat --seed 89 -i {input.fasta} -a data/final.cov -o data/metabat_bins_2/binned_contigs && " \
         "touch data/metabat_bins_2/done"
 
 rule checkm:
