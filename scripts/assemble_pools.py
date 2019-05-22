@@ -28,7 +28,7 @@ with open(snakemake.input.list) as f:
 
 
 
-with open(snakemake.fasta, 'w') as o:
+with open(snakemake.output.fasta, 'w') as o:
     o.write('assembly\tmax_contig\tcontigs\n')
     count = 0
     for i in out_assemblies:
