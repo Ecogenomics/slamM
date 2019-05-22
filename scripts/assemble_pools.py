@@ -13,10 +13,10 @@ out_assemblies = []
 with open(snakemake.input.list) as f:
     for line in f:
         mb_bin, long_reads, length, bases_nano, short_reads, bases_ill = line.split()
-        long_reads += '.fastq.gz'
+        long_reads = long_reads[:-5] + '.fastq.gz'
         long_reads = os.path.abspath(long_reads)
-        short_reads_1 = short_reads + '.1.fastq.gz'
-        short_reads_2 = short_reads + '.2.fastq.gz'
+        short_reads_1 = short_reads[:-5] + '.1.fastq.gz'
+        short_reads_2 = short_reads[:-5] + '.2.fastq.gz'
         short_reads_1 = os.path.abspath(short_reads_1)
         short_reads_2 = os.path.abspath(short_reads_2)
         length, bases_nano, bases_ill = float(length), float(bases_nano), float(bases_ill)
