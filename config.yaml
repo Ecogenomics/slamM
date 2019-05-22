@@ -18,3 +18,5 @@ genome_size:
     5000000
 fastq_pass_dir:
     none
+sequence_summary:
+    none
