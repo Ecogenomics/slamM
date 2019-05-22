@@ -230,7 +230,7 @@ rule get_high_cov_contigs:
             f.readline()
             high_cov_set = set()
             for line in f:
-                if float(line.split()[2]) >= params.min_cov_long or ill_cov_dict[line.split()[0]] <= params.min_cov_short:
+                if float(line.split()[2]) >= params.min_cov_long or not line.split()[0] in ill_cov_dict or ill_cov_dict[line.split()[0]] <= params.min_cov_short:
                     high_cov_set.add(line.split()[0])
         with open(input.fasta) as f, open(output.fasta, 'w') as o:
             write_line = False
