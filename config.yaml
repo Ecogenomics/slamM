@@ -16,3 +16,5 @@ guppy_model:
     r941_flip243
 genome_size:
     5000000
+fastq_pass_dir:
+    none
