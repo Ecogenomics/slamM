@@ -458,7 +458,7 @@ rule create_webpage:
     input:
         checkm_file = "data/checkm.out",
         metabat_bins = "data/metabat_bins_2/done",
-        fasta = "data/combined_final_assemblies.pol.fasta",
+        fasta = "data/final_contigs.fasta",
         long_reads_qc_html = "www/nanoplot/longReadsNanoPlot-report.html",
         short_reads_qc_html = "www/short_reads_fastqc.html",
         genes_gff = "data/genes.gff"
