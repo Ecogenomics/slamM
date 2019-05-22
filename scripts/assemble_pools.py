@@ -31,6 +31,11 @@ with open(snakemake.input.list) as f:
 with open(snakemake.output.summary, 'w') as o:
     o.write('assembly\tmax_contig\tcontigs\n')
     for i in out_assemblies:
+        if not os.path.exists(i):
+            with open(i[:-14] + 'unicycler.log') as f:
+                lastline = f.readlines()[-1]
+                if lastline.startswith("Error: SPAdes failed to produce assemblies. See spades_assembly/assembly/spades.log for more info."):
+                   continue
         with open(i) as assembly:
             length_list = []
             for line in assembly:
