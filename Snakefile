@@ -323,11 +323,11 @@ rule get_read_pools:
          "envs/mfqe.yaml"
     shell:
          'eval $(printf "zcat {input.long_reads} | mfqe --fastq-read-name-lists "; for file in data/binned_reads/*.long.list; do printf "$file "; done;'\
-         ' printf " --output-fastq-files "; for file in data/binned_reads/*.long.list; do printf "${file:0:-5} "; done; printf "\n") && ' \
+         ' printf " --output-fastq-files "; for file in data/binned_reads/*.long.list; do printf "${{file:0:-5}} "; done; printf "\n") && ' \
          'eval $(printf "seqtk seq -1 {input.short_reads} | mfqe --fastq-read-name-lists "; for file in data/binned_reads/*.short.list; do printf "$file "; done;'\
-         ' printf " --output-fastq-files "; for file in data/binned_reads/*.short.list; do printf "${file:0:-5}.1.fastq.gz "; done; printf "\n") && ' \
+         ' printf " --output-fastq-files "; for file in data/binned_reads/*.short.list; do printf "${{file:0:-5}}.1.fastq.gz "; done; printf "\n") && ' \
          'eval $(printf "seqtk seq -2 {input.short_reads} | mfqe --fastq-read-name-lists "; for file in data/binned_reads/*.short.list; do printf "$file "; done;'\
-         ' printf " --output-fastq-files "; for file in data/binned_reads/*.short.list; do printf "${file:0:-5}.2.fastq.gz "; done; printf "\n") && touch {output}'
+         ' printf " --output-fastq-files "; for file in data/binned_reads/*.short.list; do printf "${{file:0:-5}}.2.fastq.gz "; done; printf "\n") && touch {output}'
 
 
 
