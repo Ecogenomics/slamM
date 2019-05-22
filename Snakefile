@@ -394,7 +394,7 @@ rule final_cov_long:
 
 rule metabat_binning_2:
     input:
-        bam = "data/final_cov.sort.bam",
+        coverage = "data/final.cov",
         fasta = "data/final_contigs.fasta"
     output:
         metabat_done = "data/metabat_bins_2/done"
@@ -402,7 +402,7 @@ rule metabat_binning_2:
         "envs/metabat2.yaml"
     shell:
         "mkdir -p data/metabat_bins_2 && " \
-        "metabat --seed 89 -i {input.fasta} -a data/final.cov -o data/metabat_bins_2/binned_contigs && " \
+        "metabat --seed 89 -i {input.fasta} -a {input.coverage} -o data/metabat_bins_2/binned_contigs && " \
         "touch data/metabat_bins_2/done"
 
 rule checkm:
