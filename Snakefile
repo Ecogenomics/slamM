@@ -194,7 +194,8 @@ rule polish_meta_racon_ill:
         reads = "data/short_reads.fastq.gz",
         fasta = "data/assembly.pol.pil.fasta"
     output:
-        fasta = "data/assembly.pol.fin.fasta"
+        fasta = "data/assembly.pol.fin.fasta",
+        paf = "data/final_assembly.paf.gz"
     threads:
         config["max_threads"]
     conda:
@@ -209,17 +210,27 @@ rule polish_meta_racon_ill:
 rule get_high_cov_contigs:
     input:
         info = "data/flye/assembly_info.txt",
-        fasta = "data/flye/assembly.fasta"
+        fasta = "data/assembly.pol.fin.fasta",
+        paf = "data/final_assembly.paf.gz"
     output:
         fasta = "data/flye_high_cov.fasta"
     params:
-        min_cov = 20.0
+        min_cov_long = 20.0,
+        min_cov_short = 20.0
     run:
+        import gzip
+        ill_cov_dict = {}
+        with gzip.open(input.paf) as paf:
+            for line in paf:
+                query, qlen, qstart, qend, strand, ref, rlen, rstart, rend = line.split()[:9]
+                if not ref in ill_cov_dict:
+                    ill_cov_dict[ref] = 0.0
+                ill_cov_dict[ref] += (int(rend) - int(rstart)) / int(rlen)
         with open(input.info) as f:
             f.readline()
             high_cov_set = set()
             for line in f:
-                if float(line.split()[2]) >= params.min_cov:
+                if float(line.split()[2]) >= params.min_cov_long or ill_cov_dict[line.split()[0]] <= params.min_cov_short:
                     high_cov_set.add(line.split()[0])
         with open(input.fasta) as f, open(output.fasta, 'w') as o:
             write_line = False
