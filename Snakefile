@@ -498,7 +498,7 @@ rule process_unsorted_reads:
     params:
          fastq_pass = config["fastq_pass_dir"]
     shell:
-         "cat {params.fastq_pass}/* | qcat -b {output}"
+         "cat {params.fastq_pass}/* | qcat --trim -b {output}"
 
 
 
