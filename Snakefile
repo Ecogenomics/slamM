@@ -96,22 +96,22 @@ rule polish_metagenome_racon:
     script:
         "scripts/racon_polish.py"
 
-
-rule polish_metagenome_medaka:
-    input:
-        reads = config["long_reads"],
-        contigs = "data/assembly.pol.rac.fasta"
-    conda:
-        "envs/medaka.yaml"
-    threads:
-        config["max_threads"]
-    params:
-        model = config["guppy_model"]
-    output:
-        fasta = "data/assembly.pol.med.fasta"
-    shell:
-        "medaka_consensus -i {input.reads} -d {input.contigs} -o data/medaka/ -t {threads} -m {params.model} && " \
-        "cp data/medaka/consensus.fasta {output.fasta}"
+#
+# rule polish_metagenome_medaka:
+#     input:
+#         reads = config["long_reads"],
+#         contigs = "data/assembly.pol.rac.fasta"
+#     conda:
+#         "envs/medaka.yaml"
+#     threads:
+#         config["max_threads"]
+#     params:
+#         model = config["guppy_model"]
+#     output:
+#         fasta = "data/assembly.pol.med.fasta"
+#     shell:
+#         "medaka_consensus -i {input.reads} -d {input.contigs} -o data/medaka/ -t {threads} -m {params.model} && " \
+#         "cp data/medaka/consensus.fasta {output.fasta}"
 
 
 
@@ -175,7 +175,7 @@ rule ill_copy_reads_interleaved:
 rule polish_meta_pilon:
     input:
         reads = "data/short_reads.fastq.gz",
-        fasta = "data/assembly.pol.med.fasta"
+        fasta = "data/assembly.pol.rac.fasta"
     output:
         fasta = "data/assembly.pol.pil.fasta",
         bam = "data/pilon.sort.bam"
