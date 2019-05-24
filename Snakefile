@@ -223,14 +223,19 @@ rule get_high_cov_contigs:
         with gzip.open(input.paf) as paf:
             for line in paf:
                 query, qlen, qstart, qend, strand, ref, rlen, rstart, rend = line.split()[:9]
-                ref = ref[:-6]
+                ref = ref.decode("utf-8")[:-6]
                 if not ref in ill_cov_dict:
                     ill_cov_dict[ref] = 0.0
                 ill_cov_dict[ref] += (int(rend) - int(rstart)) / int(rlen)
+        count = 0
         with open(input.info) as f:
             f.readline()
             high_cov_set = set()
             for line in f:
+                if line.split()[0] in ill_cov_dict:
+                    covme = ill_cov_dict[line.split()[0]]
+                else:
+                    covme = 0
                 if float(line.split()[2]) >= params.min_cov_long or not line.split()[0] in ill_cov_dict or ill_cov_dict[line.split()[0]] <= params.min_cov_short:
                     high_cov_set.add(line.split()[0])
         with open(input.fasta) as f, open(output.fasta, 'w') as o:
