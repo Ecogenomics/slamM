@@ -223,6 +223,7 @@ rule get_high_cov_contigs:
         with gzip.open(input.paf) as paf:
             for line in paf:
                 query, qlen, qstart, qend, strand, ref, rlen, rstart, rend = line.split()[:9]
+                ref = ref[:-6]
                 if not ref in ill_cov_dict:
                     ill_cov_dict[ref] = 0.0
                 ill_cov_dict[ref] += (int(rend) - int(rstart)) / int(rlen)
@@ -235,7 +236,7 @@ rule get_high_cov_contigs:
         with open(input.fasta) as f, open(output.fasta, 'w') as o:
             write_line = False
             for line in f:
-                if line.startswith('>') and line.split()[0][1:] in high_cov_set:
+                if line.startswith('>') and line.split()[0][1:-6] in high_cov_set:
                     write_line = True
                 elif line.startswith('>'):
                     write_line = False
