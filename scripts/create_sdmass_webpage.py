@@ -320,357 +320,357 @@ def get_gene_sizes(gff_file):
     return size_dict
 
 
-def create_contig_page(bin, ctg, cov_forward, cov_reverse, trimmed_starts, trimmed_ends, starts_in, ends_ind,
-                       cov_forward_ill, cov_reverse_ill, x, outpage):
-     html_out = open(out_directory + '/qc_website/ctgs/' + str(html_name) + '_graphs.html', 'w')
-     html_out.write(header)
-     html_out.write('  <script type="text/javascript">\n'
-                    '  window.onload = function () {\n'
-                    '  var chart1 = new CanvasJS.Chart("chartContainer1",\n'
-                   '    {\n'
-                   '      zoomEnabled: true,\n'
-                   '      title:{\n'
-                   '      text: "Total number of each read type in bin - bin size: ' + str(
-        bin_size) + ', bin step: ' + str(bin_step) + ')",\n'
-                                                     '      fontSize: 24\n'
-                                                     '      },\n'
-                                                     '      axisX: {\n'
-                                                     '      title: "Position in genome",\n'
-                                                     '      titleFontSize: 16,\n')
-#         if clipped_flag != [] or unclipped_flag != []:
-#             html_out.write('      stripLines:[\n')
-#             for values in clipped_flag[:-1]:
-#                 html_out.write('      {\n'
-#                                '        startValue: ' + str(values[0]) + ',\n'
-#                                                                          '        endValue: ' + str(
-#                     values[1]) + ',\n'
-#                                  '        color: "#16CBEF"\n'
-#                                  '      },\n')
-#             if clipped_flag != []:
-#                 html_out.write('      {\n'
-#                                '        startValue: ' + str(clipped_flag[-1][0]) + ',\n'
-#                                                                                    '        endValue: ' + str(
-#                     clipped_flag[-1][1]) + ',\n'
-#                                            '        color: "#16CBEF"\n'
-#                                            '      }')
-#                 if unclipped_flag != []:
-#                     html_out.write(',')
-#                 else:
-#                     html_out.write('\n')
-#             for values in unclipped_flag[:-1]:
-#                 html_out.write('      {\n'
-#                                '        startValue: ' + str(values[0]) + ',\n'
-#                                                                          '        endValue: ' + str(
-#                     values[1]) + ',\n'
-#                                  '        color: "#53A01F"\n'
-#                                  '      },\n')
-#             if unclipped_flag != []:
-#                 html_out.write('      {\n'
-#                                '        startValue: ' + str(unclipped_flag[-1][0]) + ',\n'
-#                                                                                      '        endValue: ' + str(
-#                     unclipped_flag[-1][1]) + ',\n'
-#                                              '        color: "#53A01F"\n'
-#                                              '      }\n')
-#             html_out.write('       ]\n  ')
+# def create_contig_page(bin, ctg, cov_forward, cov_reverse, trimmed_starts, trimmed_ends, starts_in, ends_ind,
+#                        cov_forward_ill, cov_reverse_ill, x, outpage):
+#      html_out = open(out_directory + '/qc_website/ctgs/' + str(html_name) + '_graphs.html', 'w')
+#      html_out.write(header)
+#      html_out.write('  <script type="text/javascript">\n'
+#                     '  window.onload = function () {\n'
+#                     '  var chart1 = new CanvasJS.Chart("chartContainer1",\n'
+#                    '    {\n'
+#                    '      zoomEnabled: true,\n'
+#                    '      title:{\n'
+#                    '      text: "Total number of each read type in bin - bin size: ' + str(
+#         bin_size) + ', bin step: ' + str(bin_step) + ')",\n'
+#                                                      '      fontSize: 24\n'
+#                                                      '      },\n'
+#                                                      '      axisX: {\n'
+#                                                      '      title: "Position in genome",\n'
+#                                                      '      titleFontSize: 16,\n')
+# #         if clipped_flag != [] or unclipped_flag != []:
+# #             html_out.write('      stripLines:[\n')
+# #             for values in clipped_flag[:-1]:
+# #                 html_out.write('      {\n'
+# #                                '        startValue: ' + str(values[0]) + ',\n'
+# #                                                                          '        endValue: ' + str(
+# #                     values[1]) + ',\n'
+# #                                  '        color: "#16CBEF"\n'
+# #                                  '      },\n')
+# #             if clipped_flag != []:
+# #                 html_out.write('      {\n'
+# #                                '        startValue: ' + str(clipped_flag[-1][0]) + ',\n'
+# #                                                                                    '        endValue: ' + str(
+# #                     clipped_flag[-1][1]) + ',\n'
+# #                                            '        color: "#16CBEF"\n'
+# #                                            '      }')
+# #                 if unclipped_flag != []:
+# #                     html_out.write(',')
+# #                 else:
+# #                     html_out.write('\n')
+# #             for values in unclipped_flag[:-1]:
+# #                 html_out.write('      {\n'
+# #                                '        startValue: ' + str(values[0]) + ',\n'
+# #                                                                          '        endValue: ' + str(
+# #                     values[1]) + ',\n'
+# #                                  '        color: "#53A01F"\n'
+# #                                  '      },\n')
+# #             if unclipped_flag != []:
+# #                 html_out.write('      {\n'
+# #                                '        startValue: ' + str(unclipped_flag[-1][0]) + ',\n'
+# #                                                                                      '        endValue: ' + str(
+# #                     unclipped_flag[-1][1]) + ',\n'
+# #                                              '        color: "#53A01F"\n'
+# #                                              '      }\n')
+# #             html_out.write('       ]\n  ')
+# #
+#     html_out.write('      },\n'
+#                    '      axisY: {\n'
+#                    '      title: "Number of reads",\n'
+#                    '      titleFontSize: 16\n'
+#                    '      },\n'
+#                    '       data: [')
+#     for the_data, leg_lab, colour in zip(
+#             [forward_through, reverse_through, forward_start, reverse_start, forward_end, reverse_end,
+#              forward_start_clipped,
+#              reverse_start_clipped, forward_end_clipped, reverse_end_clipped], ['Read spans bin (Forward)',
+#                                                                                 'Read spans bin (Reverse)',
+#                                                                                 'Read starts in bin (F)',
+#                                                                                 'Read starts in bin (R)',
+#                                                                                 'Read terminates in bin (F)',
+#                                                                                 'Read terminates in bin (R)',
+#                                                                                 'Read start clipped in bin (F)',
+#                                                                                 'Read start clipped in bin (R)',
+#                                                                                 'Read end clipped in bin (F)',
+#                                                                                 'Read end clipped in bin (R)'],
+#             ["#BE4200", "#EE16B8", "#38081F", "#4282F6", "#45FAA5", "#763181",
+#              "#234D65", "#F1F272", "#D15AF4", "#CBC22F"]):
+#         html_out.write('\n{\n'
+#                        '         type: "line",\n'
+#                        '         showInLegend: true,\n'
+#                        '         legendText: "' + leg_lab + '",\n'
+#                                                             '         color: "' + colour + '",\n'
+#                                                                                            '         markerType: "none",\n'
+#                                                                                            '         dataPoints: [\n')
+#         if refnum == 0:
+#             bg_out = open(
+#                 options.output_folder + '/wiggle/' + leg_lab.replace(' ', '_').replace(')', '').replace('(',
+#                                                                                                         '').lower() + '.wig',
+#                 'w')
+#             bgt_out = open(
+#                 options.output_folder + '/bigwig/' + leg_lab.replace(' ', '_').replace(')', '').replace('(',
+#                                                                                                         '').lower() + '.bwt',
+#                 'w')
+#             bgt_out.write(
+#                 'track type=bigwig bigDataUrl=https://vanbah01.u.hpc.mssm.edu/igb/' + options.assembly_name + '/'
+#                 + leg_lab.replace(' ', '_').replace(')', '').replace('(', '').lower()
+#                 + '.bw name=' + leg_lab.replace(' ', '_').replace(')', '').replace('(', '').lower() +
+#                 'color=0,0,200 altColor=0,200,0 autoScale=on alwaysZero=on graphType=bar yLineMark=10 yLineOnOff=on\n')
+#             bgt_out.close()
+#         else:
+#             bg_out = open(
+#                 options.output_folder + '/wiggle/' + leg_lab.replace(' ', '_').replace(')', '').replace('(',
+#                                                                                                         '').lower() + '.wig',
+#                 'a')
+#         bg_out.write(
+#             'fixedStep chrom=' + reference + ' start=1 step=' + str(bin_step) + ' span=' + str(bin_step) + '\n')
+#         for value in range(0, len(x_axis) - 1):
+#             html_out.write('{ x: ' + str(x_axis[value]) + ', y: ' + str(the_data[value]) + ' },\n')
+#             if x_axis[value] >= 0 and x_axis[value] < chrom_size[reference] - bin_step:
+#                 bg_out.write(str(the_data[value]) + '\n')
+#         bg_out.close()
+#         html_out.write('{ x: ' + str(x_axis[-1]) + ', y: ' + str(the_data[-1]) + ' }\n')
+#         html_out.write('        ]\n      }')
+#         if not the_data is reverse_end_clipped:
+#             html_out.write(',\n')
+#     html_out.write('      ],\n'
+#                    '      rangeChanged: syncHandler\n'
+#                    '    });\n'
+#                    '    chart1.render();\n'
+#                    '  var chart2 = new CanvasJS.Chart("chartContainer2",\n'
+#                    '    {\n'
+#                    '      zoomEnabled: true,\n'
+#                    '      title:{\n'
+#                    '      text: "Proportion of each read type in bin - bin size: ' + str(
+#         bin_size) + ', bin step: ' + str(bin_step) + ')",\n'
+#                                                      '      fontSize: 24\n'
+#                                                      '      },\n'
+#                                                      '      axisX: {\n'
+#                                                      '      title: "Position in genome",\n'
+#                                                      '      titleFontSize: 16\n'
+#                                                      '},\n'
+#                                                      '      axisY: {\n'
+#                                                      '      title: "Number of reads",\n'
+#                                                      '      titleFontSize: 16\n'
+#                                                      '},\n'
+#                                                      '       data: [')
+#     for the_data, leg_lab in zip(
+#             [forward_through, reverse_through, forward_start, reverse_start, forward_end, reverse_end,
+#              forward_start_clipped,
+#              reverse_start_clipped, forward_end_clipped, reverse_end_clipped], ['Read spans bin (Forward)',
+#                                                                                 'Read spans bin (Reverse)',
+#                                                                                 'Read starts in bin (F)',
+#                                                                                 'Read starts in bin (R)',
+#                                                                                 'Read terminates in bin (F)',
+#                                                                                 'Read terminates in bin (R)',
+#                                                                                 'Read start clipped in bin (F)',
+#                                                                                 'Read start* clipped in bin (R)',
+#                                                                                 'Read end clipped in bin (F)',
+#                                                                                 'Read end clipped in bin (R)']):
+#         html_out.write('         {\n'
+#                        '         type: "stackedArea100",\n'
+#                        '         showInLegend: true,\n'
+#                        '         legendText: "' + leg_lab + '",\n'
+#                                                             '         markerType: "none",\n'
+#                                                             '         legendMarkerType: "square",\n'
+#                                                             '        dataPoints: [\n')
+#         for value in range(0, len(x_axis) - 1):
+#             html_out.write('{ x: ' + str(x_axis[value]) + ', y: ' + str(the_data[value]) + ' },\n')
 #
-    html_out.write('      },\n'
-                   '      axisY: {\n'
-                   '      title: "Number of reads",\n'
-                   '      titleFontSize: 16\n'
-                   '      },\n'
-                   '       data: [')
-    for the_data, leg_lab, colour in zip(
-            [forward_through, reverse_through, forward_start, reverse_start, forward_end, reverse_end,
-             forward_start_clipped,
-             reverse_start_clipped, forward_end_clipped, reverse_end_clipped], ['Read spans bin (Forward)',
-                                                                                'Read spans bin (Reverse)',
-                                                                                'Read starts in bin (F)',
-                                                                                'Read starts in bin (R)',
-                                                                                'Read terminates in bin (F)',
-                                                                                'Read terminates in bin (R)',
-                                                                                'Read start clipped in bin (F)',
-                                                                                'Read start clipped in bin (R)',
-                                                                                'Read end clipped in bin (F)',
-                                                                                'Read end clipped in bin (R)'],
-            ["#BE4200", "#EE16B8", "#38081F", "#4282F6", "#45FAA5", "#763181",
-             "#234D65", "#F1F272", "#D15AF4", "#CBC22F"]):
-        html_out.write('\n{\n'
-                       '         type: "line",\n'
-                       '         showInLegend: true,\n'
-                       '         legendText: "' + leg_lab + '",\n'
-                                                            '         color: "' + colour + '",\n'
-                                                                                           '         markerType: "none",\n'
-                                                                                           '         dataPoints: [\n')
-        if refnum == 0:
-            bg_out = open(
-                options.output_folder + '/wiggle/' + leg_lab.replace(' ', '_').replace(')', '').replace('(',
-                                                                                                        '').lower() + '.wig',
-                'w')
-            bgt_out = open(
-                options.output_folder + '/bigwig/' + leg_lab.replace(' ', '_').replace(')', '').replace('(',
-                                                                                                        '').lower() + '.bwt',
-                'w')
-            bgt_out.write(
-                'track type=bigwig bigDataUrl=https://vanbah01.u.hpc.mssm.edu/igb/' + options.assembly_name + '/'
-                + leg_lab.replace(' ', '_').replace(')', '').replace('(', '').lower()
-                + '.bw name=' + leg_lab.replace(' ', '_').replace(')', '').replace('(', '').lower() +
-                'color=0,0,200 altColor=0,200,0 autoScale=on alwaysZero=on graphType=bar yLineMark=10 yLineOnOff=on\n')
-            bgt_out.close()
-        else:
-            bg_out = open(
-                options.output_folder + '/wiggle/' + leg_lab.replace(' ', '_').replace(')', '').replace('(',
-                                                                                                        '').lower() + '.wig',
-                'a')
-        bg_out.write(
-            'fixedStep chrom=' + reference + ' start=1 step=' + str(bin_step) + ' span=' + str(bin_step) + '\n')
-        for value in range(0, len(x_axis) - 1):
-            html_out.write('{ x: ' + str(x_axis[value]) + ', y: ' + str(the_data[value]) + ' },\n')
-            if x_axis[value] >= 0 and x_axis[value] < chrom_size[reference] - bin_step:
-                bg_out.write(str(the_data[value]) + '\n')
-        bg_out.close()
-        html_out.write('{ x: ' + str(x_axis[-1]) + ', y: ' + str(the_data[-1]) + ' }\n')
-        html_out.write('        ]\n      }')
-        if not the_data is reverse_end_clipped:
-            html_out.write(',\n')
-    html_out.write('      ],\n'
-                   '      rangeChanged: syncHandler\n'
-                   '    });\n'
-                   '    chart1.render();\n'
-                   '  var chart2 = new CanvasJS.Chart("chartContainer2",\n'
-                   '    {\n'
-                   '      zoomEnabled: true,\n'
-                   '      title:{\n'
-                   '      text: "Proportion of each read type in bin - bin size: ' + str(
-        bin_size) + ', bin step: ' + str(bin_step) + ')",\n'
-                                                     '      fontSize: 24\n'
-                                                     '      },\n'
-                                                     '      axisX: {\n'
-                                                     '      title: "Position in genome",\n'
-                                                     '      titleFontSize: 16\n'
-                                                     '},\n'
-                                                     '      axisY: {\n'
-                                                     '      title: "Number of reads",\n'
-                                                     '      titleFontSize: 16\n'
-                                                     '},\n'
-                                                     '       data: [')
-    for the_data, leg_lab in zip(
-            [forward_through, reverse_through, forward_start, reverse_start, forward_end, reverse_end,
-             forward_start_clipped,
-             reverse_start_clipped, forward_end_clipped, reverse_end_clipped], ['Read spans bin (Forward)',
-                                                                                'Read spans bin (Reverse)',
-                                                                                'Read starts in bin (F)',
-                                                                                'Read starts in bin (R)',
-                                                                                'Read terminates in bin (F)',
-                                                                                'Read terminates in bin (R)',
-                                                                                'Read start clipped in bin (F)',
-                                                                                'Read start* clipped in bin (R)',
-                                                                                'Read end clipped in bin (F)',
-                                                                                'Read end clipped in bin (R)']):
-        html_out.write('         {\n'
-                       '         type: "stackedArea100",\n'
-                       '         showInLegend: true,\n'
-                       '         legendText: "' + leg_lab + '",\n'
-                                                            '         markerType: "none",\n'
-                                                            '         legendMarkerType: "square",\n'
-                                                            '        dataPoints: [\n')
-        for value in range(0, len(x_axis) - 1):
-            html_out.write('{ x: ' + str(x_axis[value]) + ', y: ' + str(the_data[value]) + ' },\n')
-
-        html_out.write('{ x: ' + str(x_axis[-1]) + ', y: ' + str(the_data[-1]) + ' }\n')
-        html_out.write('        ]\n      }')
-        if not the_data is reverse_end_clipped:
-            html_out.write(',')
-    html_out.write('      ],\n'
-                   '      rangeChanged: syncHandler\n'
-                   '   });\n'
-                   '    chart2.render();\n'
-                   '  var chart3 = new CanvasJS.Chart("chartContainer3",\n'
-                   '    {\n'
-                   '      zoomEnabled: true,\n'
-                   '      title:{\n'
-                   '      text: "Number of large indels in each bin - bin size: ' + str(
-        bin_size) + ', bin step: ' + str(bin_step) + '",\n'
-                                                     '      fontSize: 24\n'
-                                                     '      },\n'
-                                                     '      axisX: {\n'
-                                                     '      title: "Position in genome",\n'
-                                                     '      titleFontSize: 16,\n')
-    if indel_flag != []:
-        html_out.write('      stripLines:[\n')
-        for values in indel_flag[:-1]:
-            html_out.write('      {\n'
-                           '        startValue: ' + str(values[0]) + ',\n'
-                                                                     '        endValue: ' + str(
-                values[1]) + ',\n'
-                             '        color: "#16CBEF"\n'
-                             '      },\n')
-        html_out.write('      {\n'
-                       '        startValue: ' + str(indel_flag[-1][0]) + ',\n'
-                                                                         '        endValue: ' + str(
-            indel_flag[-1][1]) + ',\n'
-                                 '        color: "#16CBEF"\n'
-                                 '      }\n'
-                                 '      ]\n')
-    html_out.write('\n    },\n'
-                   '      axisY: {\n'
-                   '      title: "Number of reads",\n'
-                   '      titleFontSize: 16\n'
-                   '},\n'
-                   '      data: [')
-    for the_data, leg_lab in zip([large_deletions, large_insertions, coverage_array],
-                                 ['Deletions in read', 'Insertions in read', 'Total reads']):
-        html_out.write('         {\n'
-                       '         type: "line",\n'
-                       '         showInLegend: true,\n'
-                       '         legendText: "' + leg_lab + '",\n'
-                                                            '         markerType: "none",\n'
-                                                            '        dataPoints: [\n')
-        if refnum == 0:
-            bg_out = open(
-                options.output_folder + '/wiggle/' + leg_lab.replace(' ', '_').replace(')', '').replace('(',
-                                                                                                        '').lower() + '.wig',
-                'w')
-            bgt_out = open(
-                options.output_folder + '/bigwig/' + leg_lab.replace(' ', '_').replace(')', '').replace('(',
-                                                                                                        '').lower() + '.bwt',
-                'w')
-            bgt_out.write(
-                'track type=bigwig bigDataUrl=' + leg_lab.replace(' ', '_').replace(')', '').replace('(',
-                                                                                                     '').lower()
-                + '.bw name=test color=0,0,200 altColor=0,200,0 autoScale=on alwaysZero=on graphType=bar yLineMark=10 yLineOnOff=on\n')
-            bgt_out.close()
-        else:
-            bg_out = open(
-                options.output_folder + '/wiggle/' + leg_lab.replace(' ', '_').replace(')', '').replace('(',
-                                                                                                        '').lower() + '.wig',
-                'a')
-        bg_out.write(
-            'fixedStep chrom=' + reference + ' start=1 step=' + str(bin_step) + ' span=' + str(bin_step) + '\n')
-        for value in range(0, len(x_axis) - 1):
-            html_out.write('{ x: ' + str(x_axis[value]) + ', y: ' + str(the_data[value]) + ' },\n')
-            if x_axis[value] >= 0 and x_axis[value] < chrom_size[reference] - bin_step:
-                bg_out.write(str(the_data[value]) + '\n')
-        bg_out.close()
-        html_out.write('{ x: ' + str(x_axis[-1]) + ', y: ' + str(the_data[-1]) + ' }\n')
-        html_out.write('        ]\n      }')
-        if not the_data is coverage_array:
-            html_out.write(',')
-    html_out.write('''      ],
-    rangeChanged: syncHandler\n
-});
-
-chart3.render();
-var charts = [chart1, chart2, chart3];
-
-function syncHandler(e) {
-
-for (var i = 0; i < charts.length; i++) {
-    var chart = charts[i];
-
-    if (!chart.options.axisX) chart.options.axisX = {};
-
-    if (e.trigger === "reset") {
-        chart.options.axisX.viewportMinimum = chart.options.axisX.viewportMaximum = null;
-
-    } else if (chart !== e.chart) {
-        chart.options.axisX.viewportMinimum = e.axisX.viewportMinimum;
-        chart.options.axisX.viewportMaximum = e.axisX.viewportMaximum;
-    }
-
-    chart.render();
-
-}
-}
-function clickHandler(e) {
-var x = parseInt(e.target.id.split(',')[0])
-var y = parseInt(e.target.id.split(',')[1])
-for (var i = 0; i < charts.length; i++) {
-    var chart = charts[i];
-    chart.options.axisX.viewportMinimum = x;
-    chart.options.axisX.viewportMaximum = y;
-    chart.render();
-    }
-}
-var zoomButtons = document.getElementsByClassName("zoom");
-for (var i = 0; i < zoomButtons.length; i++) {
-var zoomButton = zoomButtons[i]
-zoomButton.addEventListener("click", clickHandler)
-};
-}
-</script>
-<script type="text/javascript" src="/igb/webpage_css_js/canvasjs.min.js"></script></head>
-<h1> ''' + str(html_name) + ''' graphs </h1>
-<div id="chartContainer1" style="height: 400px; width: 100%;">
-</div>
-<br />
-<table style="width: 60%" align="center">
-    <tr>
-        <th>Type</th>
-        <th>Position</th>
-    </tr>
-''')
-    for j in clipped_flag:
-        html_out.write('        <tr>\n          <td><a class="zoom" id="' + str(j[0] - 1000) + ',' + str(
-            j[1] + 1000) + '"> ' + j[2] + '</a></td>\n')
-        html_out.write('          <td>' + str(j[0]) + '..' + str(j[1]) + '</td>\n        </tr>\n')
-    for j in unclipped_flag:
-        html_out.write('        <tr>\n          <td><a class="zoom" id="' + str(j[0] - 1000) + ',' + str(
-            j[1] + 1000) + '"> ' + j[2] + '</a></td>\n')
-        html_out.write('          <td>' + str(j[0]) + '..' + str(j[1]) + '</td>\n        </tr>\n')
-    if unclipped_flag == [] and clipped_flag == []:
-        html_out.write('        <tr>\n          <td> no flags </td>\n')t.write('          <td> no flags </td>\n        </tr>\n')
-    html_out.write('''
-</table>
-<br />
-<div id="chartContainer2" style="height: 400px; width: 100%;">
-</div>
-<br />
-<div id="chartContainer3" style="height: 400px; width: 100%;">
-</div>
-<br />
-<table style="width: 60%" align="center">
-    <tr>
-        <th>Type</th>
-        <th>Position</th>
-    </tr>
-''')
-    for j in indel_flag:
-        html_out.write('        <tr>\n          <td><a class="zoom" id="' + str(j[0] - 1000) + ',' + str(
-            j[1] + 1000) + '"> ' + j[2] + '</a></td>\n')
-        html_out.write('          <td>' + str(j[0]) + '..' + str(j[1]) + '</td>\n        </tr>\n')
-    if indel_flag == []:
-        html_out.write('        <tr>\n          <td> no flags </td>\n')
-        html_out.write('          <td> no flags </td>\n        </tr>\n')
-    html_out.write('''
-</table>
-<br />
-''')
-    html_out.write(footer)
-    html_out.close()
-    if sam.lengths[refnum] >= 300000:
-        indexa = 100000 / bin_step
-    else:
-        indexa = sam.lengths[refnum] / 3 / bin_step
-    new_array = coverage_array[indexa:-indexa]
-    if len(new_array) >= 1000:
-        zesteps = len(new_array) / 1000
-    else:
-        zesteps = 1
-    covlist = []
-    for jump in range(0, len(new_array) + 1, zesteps):
-        covlist.append(sum(new_array[jump:jump + zesteps]) * 1.0 / zesteps)
-    out_cov[html_name] = covlist
-    out_flag[html_name] = (len(clipped_flag), len(unclipped_flag), len(indel_flag))
-csfile = open(options.output_folder + '/chrom.size', 'w')
-for i in chrom_size:
-    csfile.write(i + '\t' + str(chrom_size[i]) + '\n')
-csfile.close()
-for i in os.listdir(options.output_folder + '/wiggle/'):
-    subprocess.Popen(
-        'wigToBigWig ' + options.output_folder + '/wiggle/' + i + ' ' + options.output_folder + '/chrom.size ' + options.output_folder + '/bigwig/' + i[
-                                                                                                                                                      :-3] + 'bw',
-        shell=True).wait()
-return out_cov, out_flag
+#         html_out.write('{ x: ' + str(x_axis[-1]) + ', y: ' + str(the_data[-1]) + ' }\n')
+#         html_out.write('        ]\n      }')
+#         if not the_data is reverse_end_clipped:
+#             html_out.write(',')
+#     html_out.write('      ],\n'
+#                    '      rangeChanged: syncHandler\n'
+#                    '   });\n'
+#                    '    chart2.render();\n'
+#                    '  var chart3 = new CanvasJS.Chart("chartContainer3",\n'
+#                    '    {\n'
+#                    '      zoomEnabled: true,\n'
+#                    '      title:{\n'
+#                    '      text: "Number of large indels in each bin - bin size: ' + str(
+#         bin_size) + ', bin step: ' + str(bin_step) + '",\n'
+#                                                      '      fontSize: 24\n'
+#                                                      '      },\n'
+#                                                      '      axisX: {\n'
+#                                                      '      title: "Position in genome",\n'
+#                                                      '      titleFontSize: 16,\n')
+#     if indel_flag != []:
+#         html_out.write('      stripLines:[\n')
+#         for values in indel_flag[:-1]:
+#             html_out.write('      {\n'
+#                            '        startValue: ' + str(values[0]) + ',\n'
+#                                                                      '        endValue: ' + str(
+#                 values[1]) + ',\n'
+#                              '        color: "#16CBEF"\n'
+#                              '      },\n')
+#         html_out.write('      {\n'
+#                        '        startValue: ' + str(indel_flag[-1][0]) + ',\n'
+#                                                                          '        endValue: ' + str(
+#             indel_flag[-1][1]) + ',\n'
+#                                  '        color: "#16CBEF"\n'
+#                                  '      }\n'
+#                                  '      ]\n')
+#     html_out.write('\n    },\n'
+#                    '      axisY: {\n'
+#                    '      title: "Number of reads",\n'
+#                    '      titleFontSize: 16\n'
+#                    '},\n'
+#                    '      data: [')
+#     for the_data, leg_lab in zip([large_deletions, large_insertions, coverage_array],
+#                                  ['Deletions in read', 'Insertions in read', 'Total reads']):
+#         html_out.write('         {\n'
+#                        '         type: "line",\n'
+#                        '         showInLegend: true,\n'
+#                        '         legendText: "' + leg_lab + '",\n'
+#                                                             '         markerType: "none",\n'
+#                                                             '        dataPoints: [\n')
+#         if refnum == 0:
+#             bg_out = open(
+#                 options.output_folder + '/wiggle/' + leg_lab.replace(' ', '_').replace(')', '').replace('(',
+#                                                                                                         '').lower() + '.wig',
+#                 'w')
+#             bgt_out = open(
+#                 options.output_folder + '/bigwig/' + leg_lab.replace(' ', '_').replace(')', '').replace('(',
+#                                                                                                         '').lower() + '.bwt',
+#                 'w')
+#             bgt_out.write(
+#                 'track type=bigwig bigDataUrl=' + leg_lab.replace(' ', '_').replace(')', '').replace('(',
+#                                                                                                      '').lower()
+#                 + '.bw name=test color=0,0,200 altColor=0,200,0 autoScale=on alwaysZero=on graphType=bar yLineMark=10 yLineOnOff=on\n')
+#             bgt_out.close()
+#         else:
+#             bg_out = open(
+#                 options.output_folder + '/wiggle/' + leg_lab.replace(' ', '_').replace(')', '').replace('(',
+#                                                                                                         '').lower() + '.wig',
+#                 'a')
+#         bg_out.write(
+#             'fixedStep chrom=' + reference + ' start=1 step=' + str(bin_step) + ' span=' + str(bin_step) + '\n')
+#         for value in range(0, len(x_axis) - 1):
+#             html_out.write('{ x: ' + str(x_axis[value]) + ', y: ' + str(the_data[value]) + ' },\n')
+#             if x_axis[value] >= 0 and x_axis[value] < chrom_size[reference] - bin_step:
+#                 bg_out.write(str(the_data[value]) + '\n')
+#         bg_out.close()
+#         html_out.write('{ x: ' + str(x_axis[-1]) + ', y: ' + str(the_data[-1]) + ' }\n')
+#         html_out.write('        ]\n      }')
+#         if not the_data is coverage_array:
+#             html_out.write(',')
+#     html_out.write('''      ],
+#     rangeChanged: syncHandler\n
+# });
+#
+# chart3.render();
+# var charts = [chart1, chart2, chart3];
+#
+# function syncHandler(e) {
+#
+# for (var i = 0; i < charts.length; i++) {
+#     var chart = charts[i];
+#
+#     if (!chart.options.axisX) chart.options.axisX = {};
+#
+#     if (e.trigger === "reset") {
+#         chart.options.axisX.viewportMinimum = chart.options.axisX.viewportMaximum = null;
+#
+#     } else if (chart !== e.chart) {
+#         chart.options.axisX.viewportMinimum = e.axisX.viewportMinimum;
+#         chart.options.axisX.viewportMaximum = e.axisX.viewportMaximum;
+#     }
+#
+#     chart.render();
+#
+# }
+# }
+# function clickHandler(e) {
+# var x = parseInt(e.target.id.split(',')[0])
+# var y = parseInt(e.target.id.split(',')[1])
+# for (var i = 0; i < charts.length; i++) {
+#     var chart = charts[i];
+#     chart.options.axisX.viewportMinimum = x;
+#     chart.options.axisX.viewportMaximum = y;
+#     chart.render();
+#     }
+# }
+# var zoomButtons = document.getElementsByClassName("zoom");
+# for (var i = 0; i < zoomButtons.length; i++) {
+# var zoomButton = zoomButtons[i]
+# zoomButton.addEventListener("click", clickHandler)
+# };
+# }
+# </script>
+# <script type="text/javascript" src="/igb/webpage_css_js/canvasjs.min.js"></script></head>
+# <h1> ''' + str(html_name) + ''' graphs </h1>
+# <div id="chartContainer1" style="height: 400px; width: 100%;">
+# </div>
+# <br />
+# <table style="width: 60%" align="center">
+#     <tr>
+#         <th>Type</th>
+#         <th>Position</th>
+#     </tr>
+# ''')
+#     for j in clipped_flag:
+#         html_out.write('        <tr>\n          <td><a class="zoom" id="' + str(j[0] - 1000) + ',' + str(
+#             j[1] + 1000) + '"> ' + j[2] + '</a></td>\n')
+#         html_out.write('          <td>' + str(j[0]) + '..' + str(j[1]) + '</td>\n        </tr>\n')
+#     for j in unclipped_flag:
+#         html_out.write('        <tr>\n          <td><a class="zoom" id="' + str(j[0] - 1000) + ',' + str(
+#             j[1] + 1000) + '"> ' + j[2] + '</a></td>\n')
+#         html_out.write('          <td>' + str(j[0]) + '..' + str(j[1]) + '</td>\n        </tr>\n')
+#     if unclipped_flag == [] and clipped_flag == []:
+#         html_out.write('        <tr>\n          <td> no flags </td>\n')t.write('          <td> no flags </td>\n        </tr>\n')
+#     html_out.write('''
+# </table>
+# <br />
+# <div id="chartContainer2" style="height: 400px; width: 100%;">
+# </div>
+# <br />
+# <div id="chartContainer3" style="height: 400px; width: 100%;">
+# </div>
+# <br />
+# <table style="width: 60%" align="center">
+#     <tr>
+#         <th>Type</th>
+#         <th>Position</th>
+#     </tr>
+# ''')
+#     for j in indel_flag:
+#         html_out.write('        <tr>\n          <td><a class="zoom" id="' + str(j[0] - 1000) + ',' + str(
+#             j[1] + 1000) + '"> ' + j[2] + '</a></td>\n')
+#         html_out.write('          <td>' + str(j[0]) + '..' + str(j[1]) + '</td>\n        </tr>\n')
+#     if indel_flag == []:
+#         html_out.write('        <tr>\n          <td> no flags </td>\n')
+#         html_out.write('          <td> no flags </td>\n        </tr>\n')
+#     html_out.write('''
+# </table>
+# <br />
+# ''')
+#     html_out.write(footer)
+#     html_out.close()
+#     if sam.lengths[refnum] >= 300000:
+#         indexa = 100000 / bin_step
+#     else:
+#         indexa = sam.lengths[refnum] / 3 / bin_step
+#     new_array = coverage_array[indexa:-indexa]
+#     if len(new_array) >= 1000:
+#         zesteps = len(new_array) / 1000
+#     else:
+#         zesteps = 1
+#     covlist = []
+#     for jump in range(0, len(new_array) + 1, zesteps):
+#         covlist.append(sum(new_array[jump:jump + zesteps]) * 1.0 / zesteps)
+#     out_cov[html_name] = covlist
+#     out_flag[html_name] = (len(clipped_flag), len(unclipped_flag), len(indel_flag))
+#     csfile = open(options.output_folder + '/chrom.size', 'w')
+#     for i in chrom_size:
+#         csfile.write(i + '\t' + str(chrom_size[i]) + '\n')
+#     csfile.close()
+#     for i in os.listdir(options.output_folder + '/wiggle/'):
+#         subprocess.Popen(
+#             'wigToBigWig ' + options.output_folder + '/wiggle/' + i + ' ' + options.output_folder + '/chrom.size ' + options.output_folder + '/bigwig/' + i[
+#                                                                                                                                                           :-3] + 'bw',
+#             shell=True).wait()
+#     return out_cov, out_flag
 
 
 def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, short_bam, gff_file, long_qc_html, short_qc_html, min_contig_size=100000):
@@ -739,9 +739,9 @@ def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, shor
                 cov_forward_ill, cov_reverse_ill = get_cov_stats_short(short_bam, ctg)
                 coverage_short = (sum(cov_forward_ill) + sum(cov_reverse_ill)) / len(cov_forward_ill)
                 bases_sequenced_short += coverage_short * len_dict[ctg]
-            if len_dict[ctg] >= min_contig_size:
-                create_contig_page(bin, ctg, cov_forward, cov_reverse, trimmed_starts, trimmed_ends, starts_in,
-                                ends_ind, cov_forward_ill, cov_reverse_ill, x, 'ctg/' + ctg + '.html')
+            # if len_dict[ctg] >= min_contig_size:
+            #     create_contig_page(bin, ctg, cov_forward, cov_reverse, trimmed_starts, trimmed_ends, starts_in,
+            #                     ends_ind, cov_forward_ill, cov_reverse_ill, x, 'ctg/' + ctg + '.html')
             ctg_details.append((ctg, len_dict[ctg], coverage_long, coverage_short))
         gene_average = numpy.average(gene_sizes)
         gene_std = numpy.std(gene_sizes)
