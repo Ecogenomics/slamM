@@ -823,10 +823,10 @@ except FileExistsError:
 
 
 if os.path.exists("data/short_reads.fastq.gz"):
-    short_bam = "data/final_cov.sort.bam"
-    long_bam = "data/long_reads_for_web.bam"
+    short_bam = "data/final_short.sort.bam"
+    long_bam = "data/final_long.sort.bam"
 else:
-    long_bam = "data/final_cov.sort.bam"
+    long_bam = "data/final_long.sort.bam"
     short_bam = None
 
 
