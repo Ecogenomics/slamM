@@ -803,7 +803,7 @@ def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, shor
         bin_list.append(bin)
     gtdbtk_dict = get_gtdbtk(gtdbtk_dir)
     for i in gtdbtk_dict:
-        gtdbtk_dict[i] = i[0] + ' (' + i[1] + '%)'
+        gtdbtk_dict[i] = gtdbtk_dict[i][0] + ' (' + gtdbtk_dict[i][1] + '%)'
     cov_dict = {}
     for i in os.listdir(metabat_folder):
         if not i.startswith('binned_contigs'):
