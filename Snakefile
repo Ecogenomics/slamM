@@ -6,6 +6,7 @@ workdir: config["workdir"]
 
 ruleorder: map_reads_ref > copy_reads
 ruleorder: filter_illumina_ref > filter_illumina_ref_interleaved > ill_copy_reads > ill_copy_reads_interleaved
+ruleorder: fastqc > fastqc_long
 ruleorder: polish_isolate_racon_ill > skip_illumina_polish
 ruleorder: final_cov_combo > final_cov_long
 
@@ -199,7 +200,7 @@ rule polish_meta_racon_ill:
     threads:
         config["max_threads"]
     conda:
-        "envs/pilon.yaml"
+        "envs/racon.yaml"
     shell:
         """zcat {input.reads} | awk '{{if (NR % 8 == 1) {{print $1 "/1"}} else if (NR % 8 == 5) {{print $1 "/2"}} 
         else if (NR % 4 == 3){{print "+"}} else {{print $0}} }}' | gzip > data/short_reads_racon.fastq.gz &&
@@ -299,7 +300,7 @@ rule metabat_binning_short:
          "samtools sort -o data/short_vs_mega.bam - && samtools index {output.bam} && "\
          "jgi_summarize_bam_contig_depths --outputDepth data/megahit.cov data/short_vs_mega.bam && " \
          "mkdir -p data/metabat_bins && " \
-         "metabat --seed 89 -l -i {input.fasta} -a data/megahit.cov -o data/metabat_bins/binned_contigs && " \
+         "metabat --seed 89 -m 1500 -l -i {input.fasta} -a data/megahit.cov -o data/metabat_bins/binned_contigs && " \
          "touch data/metabat_bins/done"
 
 rule map_long_mega:
@@ -370,7 +371,7 @@ rule final_cov_combo:
         short_reads = "data/short_reads.fastq.gz",
         long_reads = "data/long_reads.fastq.gz",
         unicyc_fasta = "data/unicycler_combined.fa",
-        flye_fasta = "data/flye/assembly.fasta"
+        flye_fasta = "data/assembly.pol.fin.fasta"
     output:
         short_bam = "data/final_short.sort.bam",
         fasta = "data/final_contigs.fasta",
@@ -392,10 +393,10 @@ rule final_cov_combo:
 rule final_cov_long:
     input:
         long_reads = "data/long_reads.fastq.gz",
-        fasta = "data/flye/assembly.fasta"
+        fasta = "data/assembly.pol.fin.fasta"
     output:
         fasta = "data/final_contigs.fasta",
-        long_bam = "data/final_long.sort.bam",
+        bam = "data/final_long.sort.bam",
         coverage = "data/final.cov"
     conda:
         "envs/metabat2.yaml"
@@ -405,7 +406,7 @@ rule final_cov_long:
         "minimap2 -t {threads} -ax map-ont -a {input.fasta} {input.long_reads} |  samtools view -b | " \
         "samtools sort -o {output.bam} - && samtools index {output.bam} && " \
         "ln {input.fasta} {output.fasta} && " \
-        "jgi_summarize_bam_contig_depths --outputDepth data/final.cov {output.long_bam}"
+        "jgi_summarize_bam_contig_depths --outputDepth data/final.cov {output.bam}"
 
 
 
@@ -429,9 +430,12 @@ rule checkm:
         "data/checkm.out"
     conda:
         "envs/checkm.yaml"
+    params:
+        checkm_folder = config["checkm_folder"]
     threads:
         config["max_threads"]
     shell:
+        "echo {params.checkm_folder} | checkm data setRoot && " \
         "checkm lineage_wf -t {threads} -x fa data/metabat_bins_2 data/checkm > data/checkm.out"
 
 
@@ -446,6 +450,12 @@ rule fastqc:
         config["max_threads"]
     shell:
         "fastqc -o www {input}"
+
+rule fastqc_long:
+    output:
+        "www/short_reads_fastqc.html"
+    shell:
+        'echo "no short reads" > {output}'
 
 
 rule nanoplot:
@@ -471,6 +481,24 @@ rule prodigal:
         "prodigal -i {input.fasta} -f gff -o {output} -p meta"
 
 
+rule gtdbtk:
+    input:
+        "data/metabat_bins_2/done"
+    output:
+        gtdbtk_dir = directory("data/gtdbtk/"),
+        tree = "data/gtdbtk/gtdbtk.bac120.classify.tree"
+    params:
+        gtdbtk_dir = config['gtdbtk_dir']
+    conda:
+        "envs/gtdbtk.yaml"
+    threads:
+        config["max_threads"]
+    shell:
+        "export GTDBTK_DATA_PATH={params.gtdbtk_dir} && " \
+        "gtdbtk classify_wf --cpus {threads} --extension fa --genome_dir data/metabat_bins_2 --out_dir {output.gtdbtk_dir}"
+
+
+
 rule create_webpage:
     input:
         checkm_file = "data/checkm.out",
@@ -478,7 +506,8 @@ rule create_webpage:
         fasta = "data/final_contigs.fasta",
         long_reads_qc_html = "www/nanoplot/longReadsNanoPlot-report.html",
         short_reads_qc_html = "www/short_reads_fastqc.html",
-        genes_gff = "data/genes.gff"
+        genes_gff = "data/genes.gff",
+        gtdbtk_tree = "data/gtdbtk/gtdbtk.bac120.classify.tree"
     output:
         "www/index.html"
     threads:
@@ -595,11 +624,11 @@ rule polish_isolate_racon_ill:
         reads = "data/short_reads.fastq.gz",
         fasta = "isolate/isolate.pol.pil.fasta"
     output:
-        fasta = "isolate/isolate.pol.fin.fasta",
+        fasta = "isolate/isolate.pol.fin.fasta"
     threads:
         config["max_threads"]
     conda:
-        "envs/pilon.yaml"
+        "envs/racon.yaml"
     shell:
         """zcat {input.reads} | awk '{{if (NR % 8 == 1) {{print $1 "/1"}} else if (NR % 8 == 5) {{print $1 "/2"}} 
         else if (NR % 4 == 3){{print "+"}} else {{print $0}} }}' | gzip > data/short_reads_racon.fastq.gz &&

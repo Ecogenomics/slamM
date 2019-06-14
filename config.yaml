@@ -20,3 +20,7 @@ fastq_pass_dir:
     none
 sequence_summary:
     none
+checkm_folder:
+    /srv/longreads/nanopore/checkm_data
+gtdbtk_folder:
+    /srv/db/gtdbtk/official/release86.3

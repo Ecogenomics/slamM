@@ -286,6 +286,101 @@ def get_cov_stats_long(bamfile, contig, bin_size=3000, bin_step=500, buffer=50):
     return(coverage_forward, coverage_reverse, trimmed_starts, trimmed_ends, starts_in, ends_in, x)
 
 
+def get_gtdbtk(gtdbtk_folder, in_dict=None):
+    connect_dict = {}
+    out_dict = {}
+    with open(os.path.join(gtdbtk_folder, 'gtdbtk.bac120.summary.tsv')) as f:
+        f.readline()
+        for line in f:
+            the_bin, phylo, nearest, ani_radius, ani_tax, ani = line.split('\t')[:6]
+            the_bin = the_bin.split(.)[-1]
+            out_dict[the_bin] = (nearest, ani)
+            if not in_dict is None:
+                cov = in_dict[the_bin]
+            else:
+                cov = 10
+            lastname = None
+            for i in phylo.split(';'):
+                if i == 's__':
+                    the_name = 's__' +the_bin
+                elif i == 'g__':
+                    the_name = 'g__' + the_bin
+                else:
+                    the_name = i
+                if not lastname is None:
+                    if (lastname, the_name) in connect_dict:
+                        connect_dict[(lastname, the_name)] += cov
+                    else:
+                        connect_dict[(lastname, the_name)] = cov
+                lastname = the_name
+    with open(os.path.join(gtdbtk_folder, 'gtdbtk.ar122.summary.tsv')) as f:
+        f.readline()
+        for line in f:
+            the_bin, phylo, nearest, ani_radius, ani_tax, ani = line.split('\t')[:6]
+            out_dict[the_bin] = (nearest, ani)
+            if not in_dict is None:
+                cov = in_dict[the_bin]
+            else:
+                cov = 10
+            lastname = None
+            for i in phylo.split(';'):
+                if i == 's__':
+                    the_name = 's__' + the_bin
+                elif i == 'g__':
+                    the_name = 'g__' + the_bin
+                else:
+                    the_name = i
+                if not lastname is None:
+                    if (lastname, the_name) in connect_dict:
+                        connect_dict[(lastname, the_name)] += cov
+                    else:
+                        connect_dict[(lastname, the_name)] = cov
+                lastname = the_name
+    if in_dict is None:
+        return out_dict
+    connect_list = []
+    for i in connect_dict:
+        connect_list.append([i[0], i[1], connect_dict[i]])
+    connect_list.sort(key=lambda x: x[2], reverse=True)
+    with open('sankey.html', 'w') as o:
+        o.write('''<html>
+<body>
+ <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
+<div id="sankey_multiple" style="width: 800px; height: 1200px;"></div>
+
+<script type="text/javascript">
+  google.charts.load("current", {packages:["sankey"]});
+  google.charts.setOnLoadCallback(drawChart);
+   function drawChart() {
+    var data = new google.visualization.DataTable();
+    data.addColumn('string', 'From');
+    data.addColumn('string', 'To');
+    data.addColumn('number', 'Weight');
+    data.addRows([\n''')
+        for i in connect_list[:-1]:
+            o.write(str(i) + ',\n')
+        o.write(str(connect_list[-1]))
+        o.write('''
+    ]);
+
+    // Set chart options
+    var options = {
+      width: 1400,
+      height: 2000, 
+      textStyle: {
+            fontSize: 6,
+        },
+    };
+
+    // Instantiate and draw our chart, passing in some options.
+    var chart = new google.visualization.Sankey(document.getElementById('sankey_multiple'));
+    chart.draw(data, options);
+   }
+</script>
+</body>
+</html>''')
+
 
 def get_cov_stats_short(bamfile, contig, bin_size=3000, bin_step=500):
     samfile = pysam.AlignmentFile(bamfile, 'rb')
@@ -318,6 +413,10 @@ def get_gene_sizes(gff_file):
                 size_dict[contig] = []
             size_dict[contig].append(int(stop) - int(start))
     return size_dict
+
+
+
+
 
 
 # def create_contig_page(bin, ctg, cov_forward, cov_reverse, trimmed_starts, trimmed_ends, starts_in, ends_ind,
@@ -673,7 +772,7 @@ def get_gene_sizes(gff_file):
 #     return out_cov, out_flag
 
 
-def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, short_bam, gff_file, long_qc_html, short_qc_html, min_contig_size=100000):
+def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, short_bam, gff_file, long_qc_html, short_qc_html, gtdbtk_dir, min_contig_size=100000):
     with open(fasta) as f:
         len_dict = {}
         for line in f:
@@ -700,6 +799,9 @@ def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, shor
             continue
         bin = i.split('.')[1]
         bin_list.append(bin)
+    gtdbtk_dict = get_gtdbtk(gtdbtk_dir)
+    for i in gtdbtk_dict:
+        gtdbtk_dict[i] = i[0] + ' (' + i[1] + '%)'
     for i in os.listdir(metabat_folder):
         if not i.startswith('binned_contigs'):
             continue
@@ -752,7 +854,7 @@ def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, shor
         bin_details = [bin, '{:,}'.format(max_contig), '{:,}'.format(len(ctgs)), '{:,}'.format(bases_assembled), '{:,}'.format(n50),
                         '{:,.2f}'.format(bases_sequenced_long/bases_assembled),'{:,.2f}'.format(bases_sequenced_short/bases_assembled),
                        '{:,.2f}'.format(gene_average), '{:,.2f}'.format(gene_std), '{:,}'.format(gene_no),
-                       ] + checkm_dict[bin] + ['missing']
+                       ] + checkm_dict[bin] + [gtdbtk_dict[bin]]
         create_bin_page(bin_headers, bin_details, ctg_details, 'bin/' + bin + '.html', bin_list, long_qc_html, short_qc_html)
         outlist.append(bin_details)
     with open(outfile, 'w') as o:
@@ -815,6 +917,7 @@ fasta = snakemake.input.fasta
 long_html = snakemake.input.long_reads_qc_html[4:]
 short_html = snakemake.input.short_reads_qc_html[4:]
 gff_file = snakemake.input.genes_gff
+gtdbtk_dir = snakemake.input.gtdbtk_dir
 try:
     os.makedirs('www/bin')
 except FileExistsError:

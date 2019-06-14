@@ -23,6 +23,7 @@ for y, fasta in zip(ys, sys.argv[1:]):
     x = range(1, len(y)+1)
     plt.plot(x, y, label=fasta)
 plt.xlabel('Contig #')
+plt.xscale('log')
 plt.ylabel('Length')
 plt.legend(loc='upper left')
 plt.tight_layout()
