@@ -486,7 +486,7 @@ rule gtdbtk:
         "data/metabat_bins_2/done"
     output:
         gtdbtk_dir = directory("data/gtdbtk/"),
-        tree = "data/gtdbtk/gtdbtk.bac120.classify.tree"
+        summary = "data/gtdbtk/gtdbtk.bac120.summary.tsv"
     params:
         gtdbtk_dir = config['gtdbtk_dir']
     conda:
@@ -507,7 +507,7 @@ rule create_webpage:
         long_reads_qc_html = "www/nanoplot/longReadsNanoPlot-report.html",
         short_reads_qc_html = "www/short_reads_fastqc.html",
         genes_gff = "data/genes.gff",
-        gtdbtk_tree = "data/gtdbtk/gtdbtk.bac120.classify.tree"
+        summary = "data/gtdbtk/gtdbtk.bac120.summary.tsv"
     output:
         "www/index.html"
     threads:

@@ -917,7 +917,7 @@ fasta = snakemake.input.fasta
 long_html = snakemake.input.long_reads_qc_html[4:]
 short_html = snakemake.input.short_reads_qc_html[4:]
 gff_file = snakemake.input.genes_gff
-gtdbtk_dir = snakemake.input.gtdbtk_dir
+gtdbtk_dir = snakemake.input.gtdbtk_summary[:-25]
 try:
     os.makedirs('www/bin')
 except FileExistsError:
