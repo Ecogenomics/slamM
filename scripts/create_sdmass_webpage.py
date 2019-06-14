@@ -941,4 +941,4 @@ else:
     short_bam = None
 
 
-create_main_page("www/index.html", fasta, checkm_file, metabat_bins, long_bam, short_bam, gff_file, long_html, short_html)
+create_main_page("www/index.html", fasta, checkm_file, metabat_bins, long_bam, short_bam, gff_file, long_html, short_html, gtdbtk_dir)
