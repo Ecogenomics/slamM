@@ -506,7 +506,7 @@ rule create_webpage:
         long_reads_qc_html = "www/nanoplot/longReadsNanoPlot-report.html",
         short_reads_qc_html = "www/short_reads_fastqc.html",
         genes_gff = "data/genes.gff",
-        summary = "data/gtdbtk/gtdbtk.bac120.summary.tsv"
+        gtdbtk_summary = "data/gtdbtk/gtdbtk.bac120.summary.tsv"
     output:
         "www/index.html"
     threads:
