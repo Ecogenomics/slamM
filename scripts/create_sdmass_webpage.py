@@ -319,6 +319,7 @@ def get_gtdbtk(gtdbtk_folder, in_dict=None):
         f.readline()
         for line in f:
             the_bin, phylo, nearest, ani_radius, ani_tax, ani = line.split('\t')[:6]
+            the_bin = the_bin.split('.')[-1]
             out_dict[the_bin] = (nearest, ani)
             if not in_dict is None:
                 cov = in_dict[the_bin]
@@ -855,13 +856,17 @@ def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, shor
             cov_dict[bin] = bases_sequenced_long/bases_assembled
         else:
             cov_dict[bin] = bases_sequenced_short/bases_assembled
+        if bin in gtdbtk_dict:
+            gtdbtk_info = gtdbtk_dict[bin]
+        else:
+            gtdbtk_info = 'n/a'
         bin_headers = ['Bin', 'Max. contig (bp)', '# of contigs', 'bases assembled', 'N50', 'average read depth (long)',
                               'average read depth (short)', 'average gene size', 'Gene size Std. dev.', '# of genes', 'marker lineage',
                               'completeness', 'Contamination', 'Heterozygosity', 'Best mash hit']
         bin_details = [bin, '{:,}'.format(max_contig), '{:,}'.format(len(ctgs)), '{:,}'.format(bases_assembled), '{:,}'.format(n50),
                         '{:,.2f}'.format(bases_sequenced_long/bases_assembled),'{:,.2f}'.format(bases_sequenced_short/bases_assembled),
                        '{:,.2f}'.format(gene_average), '{:,.2f}'.format(gene_std), '{:,}'.format(gene_no),
-                       ] + checkm_dict[bin] + [gtdbtk_dict[bin]]
+                       ] + checkm_dict[bin] + [gtdbtk_info]
         create_bin_page(bin_headers, bin_details, ctg_details, 'bin/' + bin + '.html', bin_list, long_qc_html, short_qc_html)
         outlist.append(bin_details)
     get_gtdbtk(gtdbtk_dir, cov_dict)

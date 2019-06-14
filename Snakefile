@@ -406,7 +406,7 @@ rule final_cov_long:
         "minimap2 -t {threads} -ax map-ont -a {input.fasta} {input.long_reads} |  samtools view -b | " \
         "samtools sort -o {output.bam} - && samtools index {output.bam} && " \
         "ln {input.fasta} {output.fasta} && " \
-        "jgi_summarize_bam_contig_depths --outputDepth data/final.cov {output.bam}"
+        "jgi_summarize_bam_contig_depths --percentIdentity 80 --outputDepth data/final.cov {output.bam}"
 
 
 
