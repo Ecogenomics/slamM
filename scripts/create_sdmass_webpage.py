@@ -95,7 +95,9 @@ $(document).ready(function() {
             main_header += '                                                <li class="nav-item"><a class="nav-link" href="%sbin/%s.html">Bin %s</a></li>\n' % (directory, i, i)
     main_header += '''                                            </ul>
                                 </li>
-
+                                <li class="nav-item">
+                                        <a class="nav-link" href="gtdbtk.html">GTDBtk</a>
+                                </li>
                                 <li class="nav-item">
                                         <a class="nav-link" href="https://github.com/mjsull/SDMass/issues">Help</a>
                                 </li>
@@ -293,7 +295,7 @@ def get_gtdbtk(gtdbtk_folder, in_dict=None):
         f.readline()
         for line in f:
             the_bin, phylo, nearest, ani_radius, ani_tax, ani = line.split('\t')[:6]
-            the_bin = the_bin.split(.)[-1]
+            the_bin = the_bin.split('.')[-1]
             out_dict[the_bin] = (nearest, ani)
             if not in_dict is None:
                 cov = in_dict[the_bin]
@@ -342,7 +344,7 @@ def get_gtdbtk(gtdbtk_folder, in_dict=None):
     for i in connect_dict:
         connect_list.append([i[0], i[1], connect_dict[i]])
     connect_list.sort(key=lambda x: x[2], reverse=True)
-    with open('sankey.html', 'w') as o:
+    with open('www/gtdbtk.html', 'w') as o:
         o.write('''<html>
 <body>
  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
@@ -802,6 +804,7 @@ def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, shor
     gtdbtk_dict = get_gtdbtk(gtdbtk_dir)
     for i in gtdbtk_dict:
         gtdbtk_dict[i] = i[0] + ' (' + i[1] + '%)'
+    cov_dict = {}
     for i in os.listdir(metabat_folder):
         if not i.startswith('binned_contigs'):
             continue
@@ -835,7 +838,7 @@ def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, shor
             coverage_long = (sum(cov_forward) + sum(cov_reverse)) / len(cov_forward)
             bases_sequenced_long += coverage_long * len_dict[ctg]
             if short_bam is None:
-                cov_forward_ill, cov_reverse_ill = None
+                cov_forward_ill, cov_reverse_ill = None, None
                 coverage_short = 0
             else:
                 cov_forward_ill, cov_reverse_ill = get_cov_stats_short(short_bam, ctg)
@@ -848,6 +851,10 @@ def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, shor
         gene_average = numpy.average(gene_sizes)
         gene_std = numpy.std(gene_sizes)
         gene_no = len(gene_sizes)
+        if short_bam is None:
+            cov_dict[bin] = bases_sequenced_long/bases_assembled
+        else:
+            cov_dict[bin] = bases_sequenced_short/bases_assembled
         bin_headers = ['Bin', 'Max. contig (bp)', '# of contigs', 'bases assembled', 'N50', 'average read depth (long)',
                               'average read depth (short)', 'average gene size', 'Gene size Std. dev.', '# of genes', 'marker lineage',
                               'completeness', 'Contamination', 'Heterozygosity', 'Best mash hit']
@@ -857,6 +864,7 @@ def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, shor
                        ] + checkm_dict[bin] + [gtdbtk_dict[bin]]
         create_bin_page(bin_headers, bin_details, ctg_details, 'bin/' + bin + '.html', bin_list, long_qc_html, short_qc_html)
         outlist.append(bin_details)
+    get_gtdbtk(gtdbtk_dir, cov_dict)
     with open(outfile, 'w') as o:
         o.write(create_header(bin_list, '', 'index.html', long_qc_html, short_qc_html))
         o.write(add_title("Overview of assembly", "assembled into " + str(len(bin_list)) + " bins."))
