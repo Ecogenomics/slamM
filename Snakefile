@@ -485,7 +485,6 @@ rule gtdbtk:
     input:
         "data/metabat_bins_2/done"
     output:
-        gtdbtk_dir = directory("data/gtdbtk/"),
         summary = "data/gtdbtk/gtdbtk.bac120.summary.tsv"
     params:
         gtdbtk_folder = config['gtdbtk_folder']
@@ -495,7 +494,7 @@ rule gtdbtk:
         config["max_threads"]
     shell:
         "export GTDBTK_DATA_PATH={params.gtdbtk_folder} && " \
-        "gtdbtk classify_wf --cpus {threads} --extension fa --genome_dir data/metabat_bins_2 --out_dir {output.gtdbtk_dir}"
+        "gtdbtk classify_wf --cpus {threads} --extension fa --genome_dir data/metabat_bins_2 --out_dir data/gtdbtk"
 
 
 
