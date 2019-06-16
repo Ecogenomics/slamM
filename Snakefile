@@ -393,7 +393,7 @@ rule final_cov_combo:
 rule final_cov_long:
     input:
         long_reads = "data/long_reads.fastq.gz",
-        fasta = "data/assembly.pol.fin.fasta"
+        fasta = "data/assembly.pol.rac.fasta"
     output:
         fasta = "data/final_contigs.fasta",
         bam = "data/final_long.sort.bam",
