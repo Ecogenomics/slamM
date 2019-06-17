@@ -570,7 +570,7 @@ rule assemble_reads_flye:
 rule polish_isolate_racon:
     input:
         fastq = config["long_reads"],
-        contigs = "isolate/flye/assembly.fasta"
+        fasta = "isolate/flye/assembly.fasta"
     conda:
         "envs/racon.yaml"
     threads:
