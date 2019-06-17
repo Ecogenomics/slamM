@@ -7019,30 +7019,31 @@ def get_gtdbtk(gtdbtk_folder, in_dict=None):
                     else:
                         connect_dict[(lastname, the_name)] = cov
                 lastname = the_name
-    with open(os.path.join(gtdbtk_folder, 'gtdbtk.ar122.summary.tsv')) as f:
-        f.readline()
-        for line in f:
-            the_bin, phylo, nearest, ani_radius, ani_tax, ani = line.split('\t')[:6]
-            the_bin = the_bin.split('.')[-1]
-            out_dict[the_bin] = (nearest, ani)
-            if not in_dict is None:
-                cov = in_dict[the_bin]
-            else:
-                cov = 10
-            lastname = None
-            for i in phylo.split(';'):
-                if i == 's__':
-                    the_name = 's__' + the_bin
-                elif i == 'g__':
-                    the_name = 'g__' + the_bin
+    if os.path.exists(os.path.join(gtdbtk_folder, 'gtdbtk.ar122.summary.tsv')):
+        with open(os.path.join(gtdbtk_folder, 'gtdbtk.ar122.summary.tsv')) as f:
+            f.readline()
+            for line in f:
+                the_bin, phylo, nearest, ani_radius, ani_tax, ani = line.split('\t')[:6]
+                the_bin = the_bin.split('.')[-1]
+                out_dict[the_bin] = (nearest, ani)
+                if not in_dict is None:
+                    cov = in_dict[the_bin]
                 else:
-                    the_name = i
-                if not lastname is None:
-                    if (lastname, the_name) in connect_dict:
-                        connect_dict[(lastname, the_name)] += cov
+                    cov = 10
+                lastname = None
+                for i in phylo.split(';'):
+                    if i == 's__':
+                        the_name = 's__' + the_bin
+                    elif i == 'g__':
+                        the_name = 'g__' + the_bin
                     else:
-                        connect_dict[(lastname, the_name)] = cov
-                lastname = the_name
+                        the_name = i
+                    if not lastname is None:
+                        if (lastname, the_name) in connect_dict:
+                            connect_dict[(lastname, the_name)] += cov
+                        else:
+                            connect_dict[(lastname, the_name)] = cov
+                    lastname = the_name
     if in_dict is None:
         return out_dict
     connect_list = []
@@ -7566,7 +7567,7 @@ def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, shor
             gtdbtk_info = 'n/a'
         bin_headers = ['Bin', 'Max. contig (bp)', '# of contigs', 'bases assembled', 'N50', 'average read depth (long)',
                               'average read depth (short)', 'average gene size', 'Gene size Std. dev.', '# of genes', 'marker lineage',
-                              'completeness', 'Contamination', 'Heterozygosity', 'Best mash hit']
+                              'completeness', 'Contamination', 'Heterozygosity', 'Closest ref. (% ANI)']
         bin_details = [bin, '{:,}'.format(max_contig), '{:,}'.format(len(ctgs)), '{:,}'.format(bases_assembled), '{:,}'.format(n50),
                         '{:,.2f}'.format(bases_sequenced_long/bases_assembled),'{:,.2f}'.format(bases_sequenced_short/bases_assembled),
                        '{:,.2f}'.format(gene_average), '{:,.2f}'.format(gene_std), '{:,}'.format(gene_no),
@@ -7604,9 +7605,6 @@ def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, shor
 
 
 def create_bin_page(headers, bin_details, ctg_details, outfile, bin_list, long_qc_html, short_qc_html):
-    headers = ['Bin', 'Max. contig (bp)', '# of contigs', 'bases assembled', 'N50', 'average read depth (long)',
-                              'average read depth (short)', 'marker lineage',  'completeness', 'Contamination',
-                              'Heterozygosity', 'Best mash hit']
     with open('www/' + outfile, 'w') as o:
         o.write(create_header(bin_list, '../', bin_details[0], long_qc_html, short_qc_html))
         o.write(add_title("overview of bin " + bin_details[0], "assembled into " + bin_details[2] + " contigs."))
