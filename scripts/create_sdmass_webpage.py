@@ -7011,6 +7011,8 @@ def get_gtdbtk(gtdbtk_folder, in_dict=None):
                     the_name = 's__' +the_bin
                 elif i == 'g__':
                     the_name = 'g__' + the_bin
+                elif i.startswith('s__'):
+                    the_name = i + '__' + the_bin
                 else:
                     the_name = i
                 if not lastname is None:
@@ -7034,6 +7036,8 @@ def get_gtdbtk(gtdbtk_folder, in_dict=None):
                 for i in phylo.split(';'):
                     if i == 's__':
                         the_name = 's__' + the_bin
+                    elif i.startswith('s__'):
+                        the_name = i + '__' + the_bin
                     elif i == 'g__':
                         the_name = 'g__' + the_bin
                     else:

@@ -435,8 +435,8 @@ rule checkm:
     threads:
         config["max_threads"]
     shell:
-        "echo {params.checkm_folder} | checkm data setRoot && " \
-        "checkm lineage_wf -t {threads} -x fa data/metabat_bins_2 data/checkm > data/checkm.out"
+        'var="$(which checkm)" && sed -i "s/\/srv\/whitlam\/bio\/db\/checkm_data\/1.0.0/{params.checkm_folder/g" ${var:0:-11}/lib/python2.7/site-packages/checkm/DATA_CONFIG && ' \
+        'checkm lineage_wf -t {threads} -x fa data/metabat_bins_2 data/checkm > data/checkm.out'
 
 
 rule fastqc:
