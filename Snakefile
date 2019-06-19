@@ -196,7 +196,7 @@ rule polish_meta_racon_ill:
         reads = "data/short_reads.fastq.gz",
         fasta = "data/assembly.pol.pil.fasta"
     output:
-        fasta = "data/assembly.pol.rac.fasta",
+        fasta = "data/assembly.pol.fin.fasta",
         paf = "data/racon_polishing/alignment.racon_ill.1.paf"
     threads:
         config["max_threads"]
