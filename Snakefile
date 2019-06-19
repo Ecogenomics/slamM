@@ -197,7 +197,7 @@ rule polish_meta_racon_ill:
         fasta = "data/assembly.pol.pil.fasta"
     output:
         fasta = "data/assembly.pol.fin.fasta",
-        paf = "data/racon_polishing/alignment.racon_ill.1.paf"
+        paf = "data/racon_polishing/alignment.racon_ill.0.paf"
     threads:
         config["max_threads"]
     conda:
@@ -215,7 +215,7 @@ rule get_high_cov_contigs:
     input:
         info = "data/flye/assembly_info.txt",
         fasta = "data/assembly.pol.fin.fasta",
-        paf = "data/racon_polishing/alignment.racon_ill.1.paf"
+        paf = "data/racon_polishing/alignment.racon_ill.0.paf"
     output:
         fasta = "data/flye_high_cov.fasta"
     params:
