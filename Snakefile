@@ -91,7 +91,8 @@ rule polish_metagenome_racon:
     params:
         prefix = "racon",
         maxcov = 1000,
-        rounds = 4
+        rounds = 4,
+        illumina = False
     output:
         fasta = "data/assembly.pol.rac.fasta"
     script:
@@ -195,24 +196,26 @@ rule polish_meta_racon_ill:
         reads = "data/short_reads.fastq.gz",
         fasta = "data/assembly.pol.pil.fasta"
     output:
-        fasta = "data/assembly.pol.fin.fasta",
-        paf = "data/final_assembly.paf.gz"
+        fasta = "data/assembly.pol.rac.fasta",
+        paf = "data/racon_polishing/alignment.racon_ill.1.paf"
     threads:
         config["max_threads"]
     conda:
         "envs/racon.yaml"
-    shell:
-        """zcat {input.reads} | awk '{{if (NR % 8 == 1) {{print $1 "/1"}} else if (NR % 8 == 5) {{print $1 "/2"}} 
-        else if (NR % 4 == 3){{print "+"}} else {{print $0}} }}' | gzip > data/short_reads_racon.fastq.gz &&
-        minimap2 -x sr -t {threads} {input.fasta} data/short_reads_racon.fastq.gz | gzip > data/final_assembly.paf.gz &&
-        racon -t {threads} -u data/short_reads_racon.fastq.gz data/final_assembly.paf.gz {input.fasta} > {output.fasta}"""
+    params:
+        prefix = "racon_ill",
+        maxcov = 1000,
+        rounds = 1,
+        illumina = True
+    script:
+        "scripts/racon_polish.py"
 
 
 rule get_high_cov_contigs:
     input:
         info = "data/flye/assembly_info.txt",
         fasta = "data/assembly.pol.fin.fasta",
-        paf = "data/final_assembly.paf.gz"
+        paf = "data/racon_polishing/alignment.racon_ill.1.paf"
     output:
         fasta = "data/flye_high_cov.fasta"
     params:
