@@ -222,9 +222,8 @@ rule get_high_cov_contigs:
         min_cov_long = 20.0,
         min_cov_short = 20.0
     run:
-        import gzip
         ill_cov_dict = {}
-        with gzip.open(input.paf) as paf:
+        with open(input.paf) as paf:
             for line in paf:
                 query, qlen, qstart, qend, strand, ref, rlen, rstart, rend = line.split()[:9]
                 ref = ref.decode("utf-8")[:-6]
