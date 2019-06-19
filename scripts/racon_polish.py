@@ -3,7 +3,7 @@ import os
 import subprocess
 import random
 import shutil
-
+import gzip
 
 out = "data/racon_polishing"
 reads = snakemake.input.fastq
@@ -21,7 +21,7 @@ random.seed(89)
 reference = snakemake.input.fasta
 
 if snakemake.params.illumina:
-    with open(reads) as f:
+    with gzip.open(reads) as f:
         line1 = f.readline()
         f.readline()
         f.readline()
