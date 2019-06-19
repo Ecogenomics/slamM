@@ -193,7 +193,7 @@ rule polish_meta_pilon:
 
 rule polish_meta_racon_ill:
     input:
-        reads = "data/short_reads.fastq.gz",
+        fastq = "data/short_reads.fastq.gz",
         fasta = "data/assembly.pol.pil.fasta"
     output:
         fasta = "data/assembly.pol.fin.fasta",
