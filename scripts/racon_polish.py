@@ -21,14 +21,14 @@ random.seed(89)
 reference = snakemake.input.fasta
 
 if snakemake.params.illumina:
-    with gzip.open(reads) as f:
+    with gzip.open(reads, 'rt') as f:
         line1 = f.readline()
         f.readline()
         f.readline()
         f.readline()
         line5 = f.readline()
-    if line1 == line5:
-        subprocess.Popen('zcat reads | awk \'{{if (NR % 8 == 1) {{print $1 "/1"}} else if (NR % 8 == 5) {{print $1 "/2"}} ' \
+    if line1.split()[0] == line5.split()[0]:
+        subprocess.Popen('zcat ' + reads + ' | awk \'{{if (NR % 8 == 1) {{print $1 "/1"}} else if (NR % 8 == 5) {{print $1 "/2"}} ' \
                          'else if (NR % 4 == 3){{print "+"}} else {{print $0}}}}\' | gzip > data/short_reads_racon.fastq.gz', shell=True).wait()
         reads = 'data/short_reads_racon.fastq.gz'
 
