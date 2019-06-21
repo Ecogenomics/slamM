@@ -226,7 +226,7 @@ rule get_high_cov_contigs:
         with open(input.paf) as paf:
             for line in paf:
                 query, qlen, qstart, qend, strand, ref, rlen, rstart, rend = line.split()[:9]
-                ref = ref.decode("utf-8")[:-6]
+                ref = ref[:-6]
                 if not ref in ill_cov_dict:
                     ill_cov_dict[ref] = 0.0
                 ill_cov_dict[ref] += (int(rend) - int(rstart)) / int(rlen)
