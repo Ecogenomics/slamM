@@ -580,7 +580,8 @@ rule polish_isolate_racon:
     params:
         prefix = "second",
         maxcov = 1000,
-        rounds = 4
+        rounds = 4,
+        illumina = False
     output:
         fasta = "isolate/isolate.pol.rac.fasta"
     script:
@@ -630,11 +631,14 @@ rule polish_isolate_racon_ill:
         config["max_threads"]
     conda:
         "envs/racon.yaml"
-    shell:
-        """zcat {input.reads} | awk '{{if (NR % 8 == 1) {{print $1 "/1"}} else if (NR % 8 == 5) {{print $1 "/2"}} 
-        else if (NR % 4 == 3){{print "+"}} else {{print $0}} }}' | gzip > data/short_reads_racon.fastq.gz &&
-        minimap2 -x sr -t {threads} {input.fasta} data/short_reads_racon.fastq.gz | gzip > isolate/final_assembly.paf.gz &&
-        racon -t {threads} -u data/short_reads_racon.fastq.gz isolate/final_assembly.paf.gz {input.fasta} > {output.fasta}"""
+    params:
+        prefix = "racon_ill",
+        maxcov = 1000,
+        rounds = 1,
+        illumina = True
+    script:
+        "scripts/racon_polish.py"
+
 
 rule skip_illumina_polish:
     input:
