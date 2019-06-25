@@ -562,7 +562,7 @@ rule assemble_reads_flye:
     conda:
         "envs/flye.yaml"
     params:
-        genome_size = config["genome_size"]
+        genome_size = config["meta_genome_size"]
     threads:
         config["max_threads"]
     shell:
