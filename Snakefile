@@ -72,12 +72,14 @@ rule flye_assembly:
     output:
         fasta = "data/flye/assembly.fasta",
         info = "data/flye/assembly_info.txt"
+    params:
+        genome_size = config["meta_genome_size"]
     conda:
         "envs/flye.yaml"
     threads:
         config["max_threads"]
     shell:
-        "flye --nano-raw {input.fastq} --meta -o data/flye -t {threads} -g 200m"
+        "flye --nano-raw {input.fastq} --meta -o data/flye -t {threads} -g {params.genome_size}"
 
 
 rule polish_metagenome_racon:
@@ -90,7 +92,7 @@ rule polish_metagenome_racon:
         config["max_threads"]
     params:
         prefix = "racon",
-        maxcov = 1000,
+        maxcov = 400,
         rounds = 4,
         illumina = False
     output:
@@ -204,7 +206,7 @@ rule polish_meta_racon_ill:
         "envs/racon.yaml"
     params:
         prefix = "racon_ill",
-        maxcov = 1000,
+        maxcov = 400,
         rounds = 1,
         illumina = True
     script:
@@ -562,7 +564,7 @@ rule assemble_reads_flye:
     conda:
         "envs/flye.yaml"
     params:
-        genome_size = config["meta_genome_size"]
+        genome_size = config["genome_size"]
     threads:
         config["max_threads"]
     shell:
@@ -623,7 +625,7 @@ rule polish_isolate_pilon:
 
 rule polish_isolate_racon_ill:
     input:
-        reads = "data/short_reads.fastq.gz",
+        fastq = "data/short_reads.fastq.gz",
         fasta = "isolate/isolate.pol.pil.fasta"
     output:
         fasta = "isolate/isolate.pol.fin.fasta"
