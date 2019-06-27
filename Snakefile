@@ -92,8 +92,8 @@ rule polish_metagenome_racon:
         config["max_threads"]
     params:
         prefix = "racon",
-        maxcov = 400,
-        rounds = 4,
+        maxcov = 200,
+        rounds = 3,
         illumina = False
     output:
         fasta = "data/assembly.pol.rac.fasta"
@@ -206,7 +206,7 @@ rule polish_meta_racon_ill:
         "envs/racon.yaml"
     params:
         prefix = "racon_ill",
-        maxcov = 400,
+        maxcov = 200,
         rounds = 1,
         illumina = True
     script:
