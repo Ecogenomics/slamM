@@ -528,8 +528,7 @@ rule run_qcat:
     input:
          html = "QC/read_qc.html"
     output:
-         outdir = directory("barcoded_reads"),
-         done = "barcoded_reads/done"
+         "barcoded_reads/done"
     threads:
          config["max_threads"]
     conda:
@@ -537,13 +536,13 @@ rule run_qcat:
     params:
          fastq_pass = config["fastq_pass_dir"]
     shell:
-         "cat {params.fastq_pass}/* | qcat --trim -b output.barcoded_reads && touch output.done"
+         "cat {params.fastq_pass}/* | qcat --trim -b barcoded_reads && touch {output}"
 
 rule process_barcoded_reads:
     input:
-        done = "barcoded_reads/done"
+        "barcoded_reads/done"
     output:
-        done = "barcoded_reads/clean_done"
+        "barcoded_reads/summary.txt"
     script:
         "scripts/clean_reads.py"
 
