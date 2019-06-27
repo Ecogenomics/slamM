@@ -1,8 +1,8 @@
 import os, gzip
 
 
-the_dir = snakemake.input[:-5]
-with open('barcoded_reads/summary.txt', 'w') as summary:
+the_dir = snakemake.input.done[:-5]
+with open(snakemake.output.summary, 'w') as summary:
     summary.write('barcode\tread_no\tread_length\ttotal_length\n')
     for i in os.listdir(the_dir):
         if i.endswith('.fastq'):

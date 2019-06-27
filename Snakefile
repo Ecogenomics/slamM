@@ -540,9 +540,9 @@ rule run_qcat:
 
 rule process_barcoded_reads:
     input:
-        "barcoded_reads/done"
+        done = "barcoded_reads/done"
     output:
-        "barcoded_reads/summary.txt"
+        summary = "barcoded_reads/summary.txt"
     script:
         "scripts/clean_reads.py"
 
