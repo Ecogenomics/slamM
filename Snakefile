@@ -524,11 +524,12 @@ rule create_webpage:
 #############################
 
 
-rule process_unsorted_reads:
+rule run_qcat:
     input:
          html = "QC/read_qc.html"
     output:
-         directory("barcoded_reads")
+         outdir = directory("barcoded_reads"),
+         done = "barcoded_reads/done"
     threads:
          config["max_threads"]
     conda:
@@ -536,8 +537,15 @@ rule process_unsorted_reads:
     params:
          fastq_pass = config["fastq_pass_dir"]
     shell:
-         "cat {params.fastq_pass}/* | qcat --trim -b {output}"
+         "cat {params.fastq_pass}/* | qcat --trim -b output.barcoded_reads && touch output.done"
 
+rule process_barcoded_reads:
+    input:
+        done = "barcoded_reads/done"
+    output:
+        done = "barcoded_reads/clean_done"
+    script:
+        "scripts/clean_reads.py"
 
 
 rule read_qc:
