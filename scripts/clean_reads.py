@@ -10,7 +10,7 @@ with open(snakemake.output.summary, 'w') as summary:
             tot_length = 0
             read_file = os.path.join(the_dir, i)
             l1 = "test"
-            with gzip.open(read_file) as f, gzip.open(read_file[:-5] + 'clean.fastq.gz', 'wt') as o:
+            with open(read_file) as f, gzip.open(read_file[:-5] + 'clean.fastq.gz', 'wt') as o:
                 while l1 != '':
                     l1 = f.readline()
                     l2 = f.readline()
