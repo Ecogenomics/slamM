@@ -526,17 +526,18 @@ rule create_webpage:
 
 rule run_qcat:
     input:
-         html = "QC/read_qc.html"
+         html = "QC/read_qc.html",
+         image = "QC/velocity.png"
     output:
-         "barcoded_reads/done"
+        "barcoded_reads/done"
     threads:
-         config["max_threads"]
+        config["max_threads"]
     conda:
-         "envs/qcat.yaml"
+        "envs/qcat.yaml"
     params:
-         fastq_pass = config["fastq_pass_dir"]
+        fastq_pass = config["fastq_pass_dir"]
     shell:
-         "cat {params.fastq_pass}/* | qcat --trim -b barcoded_reads && touch {output}"
+        "cat {params.fastq_pass}/* | qcat --trim -b barcoded_reads && touch {output}"
 
 rule process_barcoded_reads:
     input:
@@ -556,6 +557,15 @@ rule read_qc:
         "envs/pycoQC.yaml"
     shell:
          "pycoQC -f {input.sequence_summary} -o {output}"
+
+rule read_velocity:
+    input:
+        sequence_summary = config["sequence_summary"]
+    output:
+        image = "QC/velocity.png"
+    script:
+        "scripts/read_stats_long.py"
+
 
 
 ####################
