@@ -25,4 +25,4 @@ sequence_summary:
 checkm_folder:
     /srv/db/checkm_data/1.0.0/
 gtdbtk_folder:
-    /srv/db/gtdbtk/official/release86.3
+    /srv/db/gtdbtk/official/release89
