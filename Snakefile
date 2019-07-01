@@ -190,7 +190,7 @@ rule polish_meta_pilon:
     shell:
         "minimap2 -ax sr -t {threads} {input.fasta} {input.reads} | samtools view -b | " \
         "samtools sort -o {output.bam} - && samtools index {output.bam} && " \
-        "pilon -Xmx64000m --genome {input.fasta} --frags data/pilon.sort.bam --threads {threads} --output data/assembly.pol.pil --fix bases"
+        "pilon -Xmx128000m --genome {input.fasta} --frags data/pilon.sort.bam --threads {threads} --output data/assembly.pol.pil --fix bases"
 
 
 rule polish_meta_racon_ill:
