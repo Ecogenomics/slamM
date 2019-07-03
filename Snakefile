@@ -10,7 +10,7 @@ ruleorder: fastqc > fastqc_long
 ruleorder: polish_isolate_racon_ill > skip_illumina_polish
 ruleorder: final_cov_combo > final_cov_long
 
-# Map nanopore reads to reference genome you want to filter
+# Filter reads against a reference (i.e. for removing host contamination of the metagenome)
 rule map_reads_ref:
     input:
         fastq = config["long_reads"],
@@ -585,7 +585,7 @@ rule assemble_reads_flye:
     threads:
         config["max_threads"]
     shell:
-        "flye --nano-raw {input.reads} --threads {threads} -o isolate/flye -g {params.genome_size}"
+        "flye --nano-raw {input.reads} --threads {threads} -o isolate/flye -g {params.genome_size} --asm-coverage 100"
 
 
 rule polish_isolate_racon:
@@ -680,3 +680,14 @@ rule circlator:
         "envs/circlator.yaml"
     shell:
         "circlator all {input.fasta} {input.reads} isolate/circlator && cp isolate/circlator/06.fixstart.fasta {output.fasta}"
+
+# rule resquiggle:
+#     input:
+#         fasta = "isolate/completed_assembly.fasta",
+#         fast5_folder = config["fasta_5_folder"]
+#     output:
+#
+#     threads:
+#
+#     shell:
+
