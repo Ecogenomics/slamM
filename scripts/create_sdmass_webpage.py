@@ -6735,7 +6735,12 @@ def create_header(bin_list, directory, active, long_read_qc_html, short_read_qc_
 	    <script type="text/javascript" class="init">
 
 $(document).ready(function() {
-	$('#thetable').DataTable();
+	$('#thetable').DataTable( {
+        dom: 'Bfrtip',
+        buttons: [
+            'copy', 'csv', 'excel', 'pdf', 'print'
+        ]
+    });
 } );
 
         </script>
@@ -7028,7 +7033,7 @@ def get_gtdbtk(gtdbtk_folder, in_dict=None):
             for line in f:
                 the_bin, phylo, nearest, ani_radius, ani_tax, ani = line.split('\t')[:6]
                 the_bin = the_bin.split('.')[-1]
-                out_dict[the_bin] = (nearest, ani)
+                out_dict[the_bin] = (nearest, ani, phylo)
                 if not in_dict is None:
                     cov = in_dict[the_bin]
                 else:
@@ -7517,7 +7522,9 @@ def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, shor
         bin = i.split('.')[1]
         bin_list.append(bin)
     gtdbtk_dict = get_gtdbtk(gtdbtk_dir)
+    phylo_dict = {}
     for i in gtdbtk_dict:
+        phylo_dict[i] = gtdbtk_dict[i][2]
         gtdbtk_dict[i] = gtdbtk_dict[i][0] + ' (' + gtdbtk_dict[i][1] + '%)'
     cov_dict = {}
     for i in os.listdir(metabat_folder):
@@ -7571,16 +7578,18 @@ def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, shor
         else:
             cov_dict[bin] = bases_sequenced_short/bases_assembled
         if bin in gtdbtk_dict:
-            gtdbtk_info = gtdbtk_dict[bin]
+            gtdbtk_info1 = gtdbtk_dict[bin]
+            gtdbtk_info2 = phylo_dict[bin]
         else:
-            gtdbtk_info = 'n/a'
+            gtdbtk_info1 = 'n/a'
+            gtdbtk_info2 = 'n/a'
         bin_headers = ['Bin', 'Max. contig (bp)', '# of contigs', 'bases assembled', 'N50', 'average read depth (long)',
                               'average read depth (short)', 'average gene size', 'Gene size Std. dev.', '# of genes', 'marker lineage',
-                              'completeness', 'Contamination', 'Heterozygosity', 'Closest ref. (% ANI)']
+                              'completeness', 'Contamination', 'Heterozygosity', 'Closest ref. (% ANI)', 'Classification']
         bin_details = [bin, '{:,}'.format(max_contig), '{:,}'.format(len(ctgs)), '{:,}'.format(bases_assembled), '{:,}'.format(n50),
                         '{:,.2f}'.format(bases_sequenced_long/bases_assembled),'{:,.2f}'.format(bases_sequenced_short/bases_assembled),
                        '{:,.2f}'.format(gene_average), '{:,.2f}'.format(gene_std), '{:,}'.format(gene_no),
-                       ] + checkm_dict[bin] + [gtdbtk_info]
+                       ] + checkm_dict[bin] + [gtdbtk_info1, gtdbtk_info2]
         create_bin_page(bin_headers, bin_details, ctg_details, 'bin/' + bin + '.html', bin_list, long_qc_html, short_qc_html)
         outlist.append(bin_details)
     get_gtdbtk(gtdbtk_dir, cov_dict)
