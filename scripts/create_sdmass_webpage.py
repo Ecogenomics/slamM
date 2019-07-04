@@ -6995,32 +6995,33 @@ def get_cov_stats_long(bamfile, contig, bin_size=3000, bin_step=500, buffer=50):
 def get_gtdbtk(gtdbtk_folder, in_dict=None):
     connect_dict = {}
     out_dict = {}
-    with open(os.path.join(gtdbtk_folder, 'gtdbtk.bac120.summary.tsv')) as f:
-        f.readline()
-        for line in f:
-            the_bin, phylo, nearest, ani_radius, ani_tax, ani = line.split('\t')[:6]
-            the_bin = the_bin.split('.')[-1]
-            out_dict[the_bin] = (nearest, ani)
-            if not in_dict is None:
-                cov = in_dict[the_bin]
-            else:
-                cov = 10
-            lastname = None
-            for i in phylo.split(';'):
-                if i == 's__':
-                    the_name = 's__' +the_bin
-                elif i == 'g__':
-                    the_name = 'g__' + the_bin
-                elif i.startswith('s__'):
-                    the_name = i + '__' + the_bin
+    if os.path.exists(os.path.join(gtdbtk_folder, 'gtdbtk.bac120.summary.tsv'))
+        with open(os.path.join(gtdbtk_folder, 'gtdbtk.bac120.summary.tsv')) as f:
+            f.readline()
+            for line in f:
+                the_bin, phylo, nearest, ani_radius, ani_tax, ani = line.split('\t')[:6]
+                the_bin = the_bin.split('.')[-1]
+                out_dict[the_bin] = (nearest, ani)
+                if not in_dict is None:
+                    cov = in_dict[the_bin]
                 else:
-                    the_name = i
-                if not lastname is None:
-                    if (lastname, the_name) in connect_dict:
-                        connect_dict[(lastname, the_name)] += cov
+                    cov = 10
+                lastname = None
+                for i in phylo.split(';'):
+                    if i == 's__':
+                        the_name = 's__' +the_bin
+                    elif i == 'g__':
+                        the_name = 'g__' + the_bin
+                    elif i.startswith('s__'):
+                        the_name = i + '__' + the_bin
                     else:
-                        connect_dict[(lastname, the_name)] = cov
-                lastname = the_name
+                        the_name = i
+                    if not lastname is None:
+                        if (lastname, the_name) in connect_dict:
+                            connect_dict[(lastname, the_name)] += cov
+                        else:
+                            connect_dict[(lastname, the_name)] = cov
+                    lastname = the_name
     if os.path.exists(os.path.join(gtdbtk_folder, 'gtdbtk.ar122.summary.tsv')):
         with open(os.path.join(gtdbtk_folder, 'gtdbtk.ar122.summary.tsv')) as f:
             f.readline()
