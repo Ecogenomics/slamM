@@ -7054,6 +7054,10 @@ def get_gtdbtk(gtdbtk_folder, in_dict=None):
     connect_list = []
     for i in connect_dict:
         connect_list.append([i[0], i[1], connect_dict[i]])
+    if connect_list == []:
+        with open('www/gtdbtk.html', 'w') as o:
+            o.write("No gtdbtk output")
+        return
     connect_list.sort(key=lambda x: x[2], reverse=True)
     with open('www/gtdbtk.html', 'w') as o:
         o.write('''<html>
