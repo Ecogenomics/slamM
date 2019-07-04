@@ -489,7 +489,7 @@ rule gtdbtk:
     input:
         "data/metabat_bins_2/done"
     output:
-        summary = "data/gtdbtk/gtdbtk.bac120.summary.tsv"
+        summary = "data/gtdbtk/gtdbtk.ar122.classification_pplacer.tsv"
     params:
         gtdbtk_folder = config['gtdbtk_folder']
     conda:
@@ -510,7 +510,7 @@ rule create_webpage:
         long_reads_qc_html = "www/nanoplot/longReadsNanoPlot-report.html",
         short_reads_qc_html = "www/short_reads_fastqc.html",
         genes_gff = "data/genes.gff",
-        gtdbtk_summary = "data/gtdbtk/gtdbtk.bac120.summary.tsv"
+        gtdbtk_summary = "data/gtdbtk/gtdbtk.ar122.classification_pplacer.tsv"
     output:
         "www/index.html"
     threads:
