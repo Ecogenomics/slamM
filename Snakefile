@@ -516,7 +516,7 @@ rule create_webpage:
     threads:
         config["max_threads"]
     conda:
-        "envs/pysam.yaml"
+        "envs/webpage.yaml"
     script:
         "scripts/create_sdmass_webpage.py"
 
