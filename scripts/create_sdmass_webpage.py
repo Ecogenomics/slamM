@@ -6995,7 +6995,7 @@ def get_cov_stats_long(bamfile, contig, bin_size=3000, bin_step=500, buffer=50):
 def get_gtdbtk(gtdbtk_folder, in_dict=None):
     connect_dict = {}
     out_dict = {}
-    if os.path.exists(os.path.join(gtdbtk_folder, 'gtdbtk.bac120.summary.tsv'))
+    if os.path.exists(os.path.join(gtdbtk_folder, 'gtdbtk.bac120.summary.tsv')):
         with open(os.path.join(gtdbtk_folder, 'gtdbtk.bac120.summary.tsv')) as f:
             f.readline()
             for line in f:

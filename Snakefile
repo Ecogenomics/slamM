@@ -489,7 +489,7 @@ rule gtdbtk:
     input:
         "data/metabat_bins_2/done"
     output:
-        summary = "data/gtdbtk/gtdbtk.ar122.classification_pplacer.tsv"
+        summary = "data/gtdbtk/done"
     params:
         gtdbtk_folder = config['gtdbtk_folder']
     conda:
@@ -498,7 +498,7 @@ rule gtdbtk:
         config["max_threads"]
     shell:
         "export GTDBTK_DATA_PATH={params.gtdbtk_folder} && " \
-        "gtdbtk classify_wf --cpus {threads} --extension fa --genome_dir data/metabat_bins_2 --out_dir data/gtdbtk"
+        "gtdbtk classify_wf --cpus {threads} --extension fa --genome_dir data/metabat_bins_2 --out_dir data/gtdbtk && touch data/gtdbtk/done"
 
 
 
@@ -510,7 +510,7 @@ rule create_webpage:
         long_reads_qc_html = "www/nanoplot/longReadsNanoPlot-report.html",
         short_reads_qc_html = "www/short_reads_fastqc.html",
         genes_gff = "data/genes.gff",
-        gtdbtk_summary = "data/gtdbtk/gtdbtk.ar122.classification_pplacer.tsv"
+        gtdbtk_summary = "data/gtdbtk/done"
     output:
         "www/index.html"
     threads:
