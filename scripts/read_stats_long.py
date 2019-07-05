@@ -1,6 +1,8 @@
 import sys
+import matplotlib
 import matplotlib.pyplot as plt
 
+matplotlib.use('Agg')
 time_x, time_y = [], []
 length_x, length_y = [], []
 length_histo = []
