@@ -8,14 +8,16 @@ bins = 2000
 with open(snakemake.input.sequence_summary) as f:
     f.readline()
     for line in f:
-        if line.split() == 21:
+        if len(line.split()) == 21:
             filename_fastq, filename_fast5, read_id, run_id, channel, mux, start_time, duration, num_events, passes_filtering, \
             template_start, num_events_template, template_duration, sequence_length_template, mean_qscore_template, strand_score_template, \
             median_template, mad_template, pore_type, experiment_id, sample_id = line.split()
-        elif line.split() == 18:
+        elif len(line.split()) == 18:
             filename_fastq, filename_fast5, read_id, run_id, channel, mux, start_time, duration, num_events, passes_filtering, \
             template_start, num_events_template, template_duration, sequence_length_template, mean_qscore_template, strand_score_template, \
             median_template, mad_template = line.split()
+        else:
+            sys.exit("Wrong column numbers")
         bin = int(float(start_time)) // 10800
         while len(time_y) <= bin:
             time_y.append([])
