@@ -7006,7 +7006,7 @@ def get_gtdbtk(gtdbtk_folder, in_dict=None):
             for line in f:
                 the_bin, phylo, nearest, ani_radius, ani_tax, ani = line.split('\t')[:6]
                 the_bin = the_bin.split('.')[-1]
-                out_dict[the_bin] = (nearest, ani)
+                out_dict[the_bin] = (nearest, ani, phylo)
                 if not in_dict is None:
                     cov = in_dict[the_bin]
                 else:
@@ -7650,7 +7650,7 @@ fasta = snakemake.input.fasta
 long_html = snakemake.input.long_reads_qc_html[4:]
 short_html = snakemake.input.short_reads_qc_html[4:]
 gff_file = snakemake.input.genes_gff
-gtdbtk_dir = snakemake.input.gtdbtk_summary[:-25]
+gtdbtk_dir = snakemake.input.gtdbtk_summary[:-4]
 try:
     os.makedirs('www/bin')
 except FileExistsError:
