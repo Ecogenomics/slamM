@@ -565,6 +565,8 @@ rule read_velocity:
         sequence_summary = config["sequence_summary"]
     output:
         image = "QC/velocity.png"
+    conda:
+        "envs/matplotlib.yaml"
     script:
         "scripts/read_stats_long.py"
 
