@@ -6721,29 +6721,24 @@ def create_header(bin_list, directory, active, long_read_qc_html, short_read_qc_
 
 
         <!-- Main CSS -->
-        <link rel="stylesheet" href="''' + directory + '''css/style.css">
-        <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.19/css/jquery.dataTables.css">
-        <!-- Font Awesome -->
-        <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
-        <script
-			  src="https://code.jquery.com/jquery-3.3.1.min.js"
-			  integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
-			  crossorigin="anonymous"></script>
-	    <script type="text/javascript" language="javascript" src="https://cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
-        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
-	    <script type="text/javascript" class="init">
-
+        <link rel="stylesheet" href="css/style.css">
+       <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/bs4/jq-3.3.1/jszip-2.5.0/dt-1.10.18/b-1.5.6/b-html5-1.5.6/cr-1.5.0/datatables.min.css"/>
+ 
+       <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/pdfmake.min.js"></script>
+       <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/vfs_fonts.js"></script>
+       <script type="text/javascript" src="https://cdn.datatables.net/v/bs4/jq-3.3.1/jszip-2.5.0/dt-1.10.18/b-1.5.6/b-html5-1.5.6/cr-1.5.0/datatables.min.js"></script>
+<script>
 $(document).ready(function() {
 	$('#thetable').DataTable( {
-        dom: 'Bfrtip',
+        dom: 'frtiplB;',
+        "scrollX": true,
         buttons: [
-            'copy', 'csv', 'excel', 'pdf', 'print'
+            'copy', 'csv', 'excel', 'pdf'
         ]
     });
 } );
 
-        </script>
+</script>
     </head>
 
 
@@ -7000,10 +6995,12 @@ def get_cov_stats_long(bamfile, contig, bin_size=3000, bin_step=500, buffer=50):
 def get_gtdbtk(gtdbtk_folder, in_dict=None):
     connect_dict = {}
     out_dict = {}
+    bins = 0
     if os.path.exists(os.path.join(gtdbtk_folder, 'gtdbtk.bac120.summary.tsv')):
         with open(os.path.join(gtdbtk_folder, 'gtdbtk.bac120.summary.tsv')) as f:
             f.readline()
             for line in f:
+                bins += 1
                 the_bin, phylo, nearest, ani_radius, ani_tax, ani = line.split('\t')[:6]
                 the_bin = the_bin.split('.')[-1]
                 out_dict[the_bin] = (nearest, ani, phylo)
@@ -7013,12 +7010,8 @@ def get_gtdbtk(gtdbtk_folder, in_dict=None):
                     cov = 10
                 lastname = None
                 for i in phylo.split(';'):
-                    if i == 's__':
-                        the_name = 's__' +the_bin
-                    elif i == 'g__':
-                        the_name = 'g__' + the_bin
-                    elif i.startswith('s__'):
-                        the_name = i + '__' + the_bin
+                    if len(i) == 3:
+                        the_name = i + the_bin
                     else:
                         the_name = i
                     if not lastname is None:
@@ -7031,6 +7024,7 @@ def get_gtdbtk(gtdbtk_folder, in_dict=None):
         with open(os.path.join(gtdbtk_folder, 'gtdbtk.ar122.summary.tsv')) as f:
             f.readline()
             for line in f:
+                bins += 1
                 the_bin, phylo, nearest, ani_radius, ani_tax, ani = line.split('\t')[:6]
                 the_bin = the_bin.split('.')[-1]
                 out_dict[the_bin] = (nearest, ani, phylo)
@@ -7040,12 +7034,8 @@ def get_gtdbtk(gtdbtk_folder, in_dict=None):
                     cov = 10
                 lastname = None
                 for i in phylo.split(';'):
-                    if i == 's__':
-                        the_name = 's__' + the_bin
-                    elif i.startswith('s__'):
-                        the_name = i + '__' + the_bin
-                    elif i == 'g__':
-                        the_name = 'g__' + the_bin
+                    if len(i) == 3:
+                        the_name = i + the_bin
                     else:
                         the_name = i
                     if not lastname is None:
@@ -7063,14 +7053,29 @@ def get_gtdbtk(gtdbtk_folder, in_dict=None):
         with open('www/gtdbtk.html', 'w') as o:
             o.write("No gtdbtk output")
         return
+    depth_first = []
     connect_list.sort(key=lambda x: x[2], reverse=True)
+    todo = ['d__Archaea', 'd__Bacteria']
+    while todo != []:
+        getit = todo.pop()
+        to_add = []
+        for i in connect_list:
+            if i[0] == getit:
+                depth_first.append(i)
+                to_add.append(i[1])
+        for i in to_add[::-1]:
+            todo.append(i)
+    print(len(connect_list), len(depth_first))
+    if len(connect_list) != len(depth_first):
+        print('adinasdgasdga')
+        sys.exit()
+    connect_list = depth_first
     with open('www/gtdbtk.html', 'w') as o:
         o.write('''<html>
 <body>
  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 
-<div id="sankey_multiple" style="width: 800px; height: 1200px;"></div>
-
+<div id="sankey_multiple" style="width: 800px; height: 3000px;"></div>
 <script type="text/javascript">
   google.charts.load("current", {packages:["sankey"]});
   google.charts.setOnLoadCallback(drawChart);
@@ -7089,7 +7094,11 @@ def get_gtdbtk(gtdbtk_folder, in_dict=None):
     // Set chart options
     var options = {
       width: 1400,
-      height: 2000, 
+      height: ''' + str(bins*30) +
+''', 
+      sankey: {
+          iterations: 0,
+          },
       textStyle: {
             fontSize: 6,
         },
