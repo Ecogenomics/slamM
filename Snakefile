@@ -513,7 +513,6 @@ rule busco:
     threads:
         config["max_threads"]
     shell:
-        "mkdir data/busco && " \
         "for file in data/metabat_bins_2/*.fa; do " \
         "run_busco -i $file -o  data/busco/bacteria_obd9.${{file:35:-3}} -l {params.busco_folder}/bacteria_odb9 -m geno && " \
         "run_busco -i $file -o  data/busco/eukaryota_odb9.${{file:35:-3}} -l {params.busco_folder}/eukaryota_odb9 -m geno && " \
