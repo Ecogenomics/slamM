@@ -26,3 +26,5 @@ checkm_folder:
     /srv/db/checkm_data/1.0.0/
 gtdbtk_folder:
     /srv/db/gtdbtk/official/release89
+busco_folder:
+    /srv/longreads/nanopore/busco

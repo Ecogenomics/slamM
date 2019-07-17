@@ -7534,7 +7534,7 @@ def get_busco(busco_folder):
 
 
 
-def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, short_bam, gff_file, long_qc_html, short_qc_html, gtdbtk_dir, min_contig_size=100000):
+def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, short_bam, gff_file, long_qc_html, short_qc_html, gtdbtk_dir, busco_dir, min_contig_size=100000):
     with open(fasta) as f:
         len_dict = {}
         for line in f:
@@ -7562,6 +7562,7 @@ def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, shor
         bin = i.split('.')[1]
         bin_list.append(bin)
     gtdbtk_dict = get_gtdbtk(gtdbtk_dir)
+    busco_bac_dict, busco_euk_dict, busco_best_dict = get_busco(busco_dir)
     phylo_dict = {}
     for i in gtdbtk_dict:
         phylo_dict[i] = gtdbtk_dict[i][2]
@@ -7628,13 +7629,16 @@ def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, shor
         else:
             gtdbtk_info1 = 'n/a'
             gtdbtk_info2 = 'n/a'
+        euk_busco = busco_euk_dict[bin]
+        bac_busco = busco_bac_dict[bin]
+        busco_kingdom, busco_best, busco_complete = busco_best_dict[bin]
         bin_headers = ['Bin', 'Max. contig (bp)', '# of contigs', 'bases assembled', 'N50', 'average read depth (long)',
                               'average read depth (short)', 'average gene size', 'Gene size Std. dev.', '# of genes', 'coding density (%)', 'marker lineage',
-                              'completeness', 'Contamination', 'Heterozygosity', 'Closest ref. (% ANI)', 'Classification']
+                              'completeness', 'Contamination', 'Heterozygosity', 'Closest ref. (% ANI)', 'Classification', 'Bacterial busco', 'Eukaryotic busco', 'Best kingdom', 'Kingdom busoc', 'kingdom completeness']
         bin_details = [bin, '{:,}'.format(max_contig), '{:,}'.format(len(ctgs)), '{:,}'.format(bases_assembled), '{:,}'.format(n50),
                         '{:,.2f}'.format(bases_sequenced_long/bases_assembled),'{:,.2f}'.format(bases_sequenced_short/bases_assembled),
                        '{:,.2f}'.format(gene_average), '{:,.2f}'.format(gene_std), '{:,}'.format(gene_no), '{:,.2f}'.format(coding_percent)
-                       ] + checkm_dict[bin] + [gtdbtk_info1, gtdbtk_info2]
+                       ] + checkm_dict[bin] + [gtdbtk_info1, gtdbtk_info2, bac_busco, euk_busco, busco_kingdom, busco_best, busco_complete]
         create_bin_page(bin_headers, bin_details, ctg_details, 'bin/' + bin + '.html', bin_list, long_qc_html, short_qc_html)
         outlist.append(bin_details)
     get_gtdbtk(gtdbtk_dir, cov_dict)
@@ -7696,6 +7700,7 @@ long_html = snakemake.input.long_reads_qc_html[4:]
 short_html = snakemake.input.short_reads_qc_html[4:]
 gff_file = snakemake.input.genes_gff
 gtdbtk_dir = snakemake.input.gtdbtk_done[:-4]
+busco_dir = snakemake.input.busco_done[:-4]
 try:
     os.makedirs('www/bin')
 except FileExistsError:
@@ -7717,4 +7722,4 @@ else:
     short_bam = None
 
 
-create_main_page("www/index.html", fasta, checkm_file, metabat_bins, long_bam, short_bam, gff_file, long_html, short_html, gtdbtk_dir)
+create_main_page("www/index.html", fasta, checkm_file, metabat_bins, long_bam, short_bam, gff_file, long_html, short_html, gtdbtk_dir, busco_dir)
