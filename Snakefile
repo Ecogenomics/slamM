@@ -501,11 +501,34 @@ rule gtdbtk:
         "gtdbtk classify_wf --cpus {threads} --extension fa --genome_dir data/metabat_bins_2 --out_dir data/gtdbtk && touch data/gtdbtk/done"
 
 
+rule busco:
+    input:
+        "data/metabat_bins_2/done"
+    output:
+        done = "data/gtdbtk/done"
+    params:
+        busco_folder = config["busco_folder"]
+    conda:
+        "envs/busco.yaml"
+    threads:
+        config["max_threads"]
+    shell:
+        "mkdir data/busco && " \
+        "for file in data/metabat_bins_2/*.fa; do " \
+        "run_busco -i $file -o  data/busco/bacteria_obd9.${{file:35:-3}} -l {params.busco_folder}/bacteria_odb9 -m geno && " \
+        "run_busco -i $file -o  data/busco/eukaryota_odb9.${{file:35:-3}} -l {params.busco_folder}/eukaryota_odb9 -m geno && " \
+        "run_busco -i $file -o  data/busco/embryophyta_odb9.${{file:35:-3}} -l {params.busco_folder}/embryophyta_odb9 -m geno && " \
+        "run_busco -i $file -o  data/busco/fungi_odb9.${{file:35:-3}} -l {params.busco_folder}/fungi_odb9 -m geno && " \
+        "run_busco -i $file -o  data/busco/metazoa_odb9.${{file:35:-3}} -l {params.busco_folder}/metazoa_odb9 -m geno && " \
+        "run_busco -i $file -o  data/busco/protists_ensembl.${{file:35:-3}} -l {params.busco_folder}/protists_ensembl -m geno; done && " \
+        "touch data/busco/done"
+
 
 rule create_webpage:
     input:
         checkm_file = "data/checkm.out",
         metabat_bins = "data/metabat_bins_2/done",
+        busco_done = "data/busco/done",
         fasta = "data/final_contigs.fasta",
         long_reads_qc_html = "www/nanoplot/longReadsNanoPlot-report.html",
         short_reads_qc_html = "www/short_reads_fastqc.html",

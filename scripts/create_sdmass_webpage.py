@@ -6722,11 +6722,13 @@ def create_header(bin_list, directory, active, long_read_qc_html, short_read_qc_
 
         <!-- Main CSS -->
         <link rel="stylesheet" href="css/style.css">
-       <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/bs4/jq-3.3.1/jszip-2.5.0/dt-1.10.18/b-1.5.6/b-html5-1.5.6/cr-1.5.0/datatables.min.css"/>
- 
-       <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/pdfmake.min.js"></script>
-       <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/vfs_fonts.js"></script>
-       <script type="text/javascript" src="https://cdn.datatables.net/v/bs4/jq-3.3.1/jszip-2.5.0/dt-1.10.18/b-1.5.6/b-html5-1.5.6/cr-1.5.0/datatables.min.js"></script>
+        <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/bs4/jq-3.3.1/jszip-2.5.0/dt-1.10.18/b-1.5.6/b-html5-1.5.6/cr-1.5.0/datatables.min.css"/>
+        <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/pdfmake.min.js"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/vfs_fonts.js"></script>
+        <script type="text/javascript" src="https://cdn.datatables.net/v/bs4/jq-3.3.1/jszip-2.5.0/dt-1.10.18/b-1.5.6/b-html5-1.5.6/cr-1.5.0/datatables.min.js"></script>
 <script>
 $(document).ready(function() {
 	$('#thetable').DataTable( {
@@ -7503,6 +7505,35 @@ def get_gene_sizes(gff_file):
 #     return out_cov, out_flag
 
 
+def get_busco(busco_folder):
+    bac_busco_dict = {}
+    euk_busco_dict = {}
+    best_busco_dict = {}
+    for busco_file in os.listdir(busco_folder):
+        if os.path.isdir(busco_file):
+            bin = busco_file.split('.')[1]
+            with open(os.path.join(busco_folder, busco_file, 'short_summary_%s.txt' % busco_file)) as f:
+                for i in range(8):
+                    line = f.readline()
+                    if i == 7:
+                        busco_string = line.split()[0]
+            if busco_file.startswith('bacteria_obd9'):
+                bac_busco_dict[bin] = busco_string
+            elif busco_file.startswith('eukaryota_obd9'):
+                euk_busco_dict[bin] = busco_string
+            else:
+                complete_b = float(busco_string.split(':')[1].split('%')[0])
+                kingdom = busco_file.split('.')[0]
+                if bin in best_busco_dict:
+                    if complete_b > best_busco_dict[bin][2]:
+                        best_busco_dict[bin] = (kingdom, busco_string, complete_b)
+                else:
+                    best_busco_dict[bin] = (kingdom, busco_string, complete_b)
+    return(bac_busco_dict, euk_busco_dict, best_busco_dict)
+
+
+
+
 def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, short_bam, gff_file, long_qc_html, short_qc_html, gtdbtk_dir, min_contig_size=100000):
     with open(fasta) as f:
         len_dict = {}
@@ -7563,8 +7594,12 @@ def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, shor
         bases_sequenced_long = 0
         bases_sequenced_short = 0
         gene_sizes = []
+        coding = 0
+        noncoding = 0
         for ctg in ctgs:
             gene_sizes += gene_size_dict[ctg]
+            coding += sum(gene_size_dict[ctg])
+            noncoding += len_dict[ctg] - sum(gene_size_dict[ctg])
             cov_forward, cov_reverse, trimmed_starts, trimmed_ends, starts_in, ends_ind, x = get_cov_stats_long(long_bam, ctg)
             coverage_long = (sum(cov_forward) + sum(cov_reverse)) / len(cov_forward)
             bases_sequenced_long += coverage_long * len_dict[ctg]
@@ -7582,6 +7617,7 @@ def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, shor
         gene_average = numpy.average(gene_sizes)
         gene_std = numpy.std(gene_sizes)
         gene_no = len(gene_sizes)
+        coding_percent = coding/(coding+noncoding)*100
         if short_bam is None:
             cov_dict[bin] = bases_sequenced_long/bases_assembled
         else:
@@ -7593,11 +7629,11 @@ def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, shor
             gtdbtk_info1 = 'n/a'
             gtdbtk_info2 = 'n/a'
         bin_headers = ['Bin', 'Max. contig (bp)', '# of contigs', 'bases assembled', 'N50', 'average read depth (long)',
-                              'average read depth (short)', 'average gene size', 'Gene size Std. dev.', '# of genes', 'marker lineage',
+                              'average read depth (short)', 'average gene size', 'Gene size Std. dev.', '# of genes', 'coding density (%)', 'marker lineage',
                               'completeness', 'Contamination', 'Heterozygosity', 'Closest ref. (% ANI)', 'Classification']
         bin_details = [bin, '{:,}'.format(max_contig), '{:,}'.format(len(ctgs)), '{:,}'.format(bases_assembled), '{:,}'.format(n50),
                         '{:,.2f}'.format(bases_sequenced_long/bases_assembled),'{:,.2f}'.format(bases_sequenced_short/bases_assembled),
-                       '{:,.2f}'.format(gene_average), '{:,.2f}'.format(gene_std), '{:,}'.format(gene_no),
+                       '{:,.2f}'.format(gene_average), '{:,.2f}'.format(gene_std), '{:,}'.format(gene_no), '{:,.2f}'.format(coding_percent)
                        ] + checkm_dict[bin] + [gtdbtk_info1, gtdbtk_info2]
         create_bin_page(bin_headers, bin_details, ctg_details, 'bin/' + bin + '.html', bin_list, long_qc_html, short_qc_html)
         outlist.append(bin_details)
