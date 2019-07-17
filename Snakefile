@@ -515,13 +515,13 @@ rule busco:
     shell:
         "mkdir -p data/busco && cd data/busco &&" \
         "for file in data/metabat_bins_2/*.fa; do " \
-        "run_busco  -i $file -o bacteria_obd9.${{file:35:-3}} -l {params.busco_folder}/bacteria_odb9 -m geno && " \
-        "run_busco  -i $file -o eukaryota_odb9.${{file:35:-3}} -l {params.busco_folder}/eukaryota_odb9 -m geno && " \
-        "run_busco  -i $file -o embryophyta_odb9.${{file:35:-3}} -l {params.busco_folder}/embryophyta_odb9 -m geno && " \
-        "run_busco  -i $file -o fungi_odb9.${{file:35:-3}} -l {params.busco_folder}/fungi_odb9 -m geno && " \
-        "run_busco  -i $file -o metazoa_odb9.${{file:35:-3}} -l {params.busco_folder}/metazoa_odb9 -m geno && " \
-        "run_busco  -i $file -o protists_ensembl.${{file:35:-3}} -l {params.busco_folder}/protists_ensembl -m geno; done && " \
-        "cd {work_dir} touch data/busco/done"
+        "run_busco -i $file -o bacteria_obd9.${{file:35:-3}} -l {params.busco_folder}/bacteria_odb9 -m geno && " \
+        "run_busco -i $file -o eukaryota_odb9.${{file:35:-3}} -l {params.busco_folder}/eukaryota_odb9 -m geno && " \
+        "run_busco -i $file -o embryophyta_odb9.${{file:35:-3}} -l {params.busco_folder}/embryophyta_odb9 -m geno && " \
+        "run_busco -i $file -o fungi_odb9.${{file:35:-3}} -l {params.busco_folder}/fungi_odb9 -m geno && " \
+        "run_busco -i $file -o metazoa_odb9.${{file:35:-3}} -l {params.busco_folder}/metazoa_odb9 -m geno && " \
+        "run_busco -i $file -o protists_ensembl.${{file:35:-3}} -l {params.busco_folder}/protists_ensembl -m geno; done && " \
+        "cd ../../ && touch data/busco/done"
 
 
 rule create_webpage:
