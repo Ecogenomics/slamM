@@ -513,13 +513,14 @@ rule busco:
     threads:
         config["max_threads"]
     shell:
+        "mkdir -p data/busco &&" \
         "for file in data/metabat_bins_2/*.fa; do " \
-        "run_busco -i $file -o  data/busco/bacteria_obd9.${{file:35:-3}} -l {params.busco_folder}/bacteria_odb9 -m geno && " \
-        "run_busco -i $file -o  data/busco/eukaryota_odb9.${{file:35:-3}} -l {params.busco_folder}/eukaryota_odb9 -m geno && " \
-        "run_busco -i $file -o  data/busco/embryophyta_odb9.${{file:35:-3}} -l {params.busco_folder}/embryophyta_odb9 -m geno && " \
-        "run_busco -i $file -o  data/busco/fungi_odb9.${{file:35:-3}} -l {params.busco_folder}/fungi_odb9 -m geno && " \
-        "run_busco -i $file -o  data/busco/metazoa_odb9.${{file:35:-3}} -l {params.busco_folder}/metazoa_odb9 -m geno && " \
-        "run_busco -i $file -o  data/busco/protists_ensembl.${{file:35:-3}} -l {params.busco_folder}/protists_ensembl -m geno; done && " \
+        "run_busco -i $file -o data/busco/bacteria_obd9.${{file:35:-3}} -l {params.busco_folder}/bacteria_odb9 -m geno && " \
+        "run_busco -i $file -o data/busco/eukaryota_odb9.${{file:35:-3}} -l {params.busco_folder}/eukaryota_odb9 -m geno && " \
+        "run_busco -i $file -o data/busco/embryophyta_odb9.${{file:35:-3}} -l {params.busco_folder}/embryophyta_odb9 -m geno && " \
+        "run_busco -i $file -o data/busco/fungi_odb9.${{file:35:-3}} -l {params.busco_folder}/fungi_odb9 -m geno && " \
+        "run_busco -i $file -o data/busco/metazoa_odb9.${{file:35:-3}} -l {params.busco_folder}/metazoa_odb9 -m geno && " \
+        "run_busco -i $file -o data/busco/protists_ensembl.${{file:35:-3}} -l {params.busco_folder}/protists_ensembl -m geno; done && " \
         "touch data/busco/done"
 
 
