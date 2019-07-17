@@ -7629,16 +7629,25 @@ def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, shor
         else:
             gtdbtk_info1 = 'n/a'
             gtdbtk_info2 = 'n/a'
-        euk_busco = busco_euk_dict[bin]
-        bac_busco = busco_bac_dict[bin]
-        busco_kingdom, busco_best, busco_complete = busco_best_dict[bin]
+        if bin in busco_euk_dict:
+            euk_busco = busco_euk_dict[bin]
+        else:
+            euk_busco = 'n/a'
+        if bin in busco_bac_dict:
+            bac_busco = busco_bac_dict[bin]
+        else:
+            bac_busco = 'n/a'
+        if bin in busco_best_dict:
+            busco_kingdom, busco_best, busco_complete = busco_best_dict[bin]
+        else:
+            busco_kingdom, busco_best, busco_complete = 'n/a', 'n/a', 0
         bin_headers = ['Bin', 'Max. contig (bp)', '# of contigs', 'bases assembled', 'N50', 'average read depth (long)',
                               'average read depth (short)', 'average gene size', 'Gene size Std. dev.', '# of genes', 'coding density (%)', 'marker lineage',
                               'completeness', 'Contamination', 'Heterozygosity', 'Closest ref. (% ANI)', 'Classification', 'Bacterial busco', 'Eukaryotic busco', 'Best kingdom', 'Kingdom busoc', 'kingdom completeness']
         bin_details = [bin, '{:,}'.format(max_contig), '{:,}'.format(len(ctgs)), '{:,}'.format(bases_assembled), '{:,}'.format(n50),
                         '{:,.2f}'.format(bases_sequenced_long/bases_assembled),'{:,.2f}'.format(bases_sequenced_short/bases_assembled),
                        '{:,.2f}'.format(gene_average), '{:,.2f}'.format(gene_std), '{:,}'.format(gene_no), '{:,.2f}'.format(coding_percent)
-                       ] + checkm_dict[bin] + [gtdbtk_info1, gtdbtk_info2, bac_busco, euk_busco, busco_kingdom, busco_best, busco_complete]
+                       ] + checkm_dict[bin] + [gtdbtk_info1, gtdbtk_info2, bac_busco, euk_busco, busco_kingdom, busco_best, '{:,.2f}'.format(busco_complete)]
         create_bin_page(bin_headers, bin_details, ctg_details, 'bin/' + bin + '.html', bin_list, long_qc_html, short_qc_html)
         outlist.append(bin_details)
     get_gtdbtk(gtdbtk_dir, cov_dict)
