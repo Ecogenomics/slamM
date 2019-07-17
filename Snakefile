@@ -505,7 +505,7 @@ rule busco:
     input:
         "data/metabat_bins_2/done"
     output:
-        done = "data/gtdbtk/done"
+        done = "data/busco/done"
     params:
         busco_folder = config["busco_folder"]
     conda:
