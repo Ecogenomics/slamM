@@ -513,14 +513,17 @@ rule busco:
     threads:
         config["max_threads"]
     shell:
-        "mkdir -p data/busco && cd data/busco &&" \
-        "for file in ../../data/metabat_bins_2/*.fa; do " \
-        "run_busco -i $file -o bacteria_obd9.${{file:41:-3}} -l {params.busco_folder}/bacteria_odb9 -m geno && " \
-        "run_busco -i $file -o eukaryota_odb9.${{file:41:-3}} -l {params.busco_folder}/eukaryota_odb9 -m geno && " \
-        "run_busco -i $file -o embryophyta_odb9.${{file:41:-3}} -l {params.busco_folder}/embryophyta_odb9 -m geno && " \
-        "run_busco -i $file -o fungi_odb9.${{file:41:-3}} -l {params.busco_folder}/fungi_odb9 -m geno && " \
-        "run_busco -i $file -o metazoa_odb9.${{file:41:-3}} -l {params.busco_folder}/metazoa_odb9 -m geno && " \
-        "run_busco -i $file -o protists_ensembl.${{file:41:-3}} -l {params.busco_folder}/protists_ensembl -m geno; done && " \
+        "mkdir -p data/busco && cd data/busco && minimumsize=500000 && " \
+        "for file in ../metabat_bins_2/*.fa; do " \
+        "actualsize=$(wc -c <\"$file\"); " \
+        "if [ $actualsize -ge $minimumsize ]; then " \
+        "run_busco -q -c {threads} -t bac_tmp.${{file:33:-3}} -i $file -o bacteria_odb9.${{file:33:-3}} -l {params.busco_folder}/bacteria_odb9 -m geno; " \
+        "run_busco -q -c {threads} -t euk_tmp.${{file:33:-3}} -i $file -o eukaryota_odb9.${{file:33:-3}} -l {params.busco_folder}/eukaryota_odb9 -m geno; " \
+        "run_busco -q -c {threads} -t emb_tmp.${{file:33:-3}} -i $file -o embryophyta_odb9.${{file:33:-3}} -l {params.busco_folder}/embryophyta_odb9 -m geno; " \
+        "run_busco -q -c {threads} -t fun_tmp.${{file:33:-3}} -i $file -o fungi_odb9.${{file:33:-3}} -l {params.busco_folder}/fungi_odb9 -m geno; " \
+        "run_busco -q -c {threads} -t met_tmp.${{file:33:-3}} -i $file -o metazoa_odb9.${{file:33:-3}} -l {params.busco_folder}/metazoa_odb9 -m geno; " \
+        "run_busco -q -c {threads} -t pro_tmp.${{file:33:-3}} -i $file -o protists_ensembl.${{file:33:-3}} -l {params.busco_folder}/protists_ensembl -m geno; " \
+        "fi; done && " \
         "cd ../../ && touch data/busco/done"
 
 

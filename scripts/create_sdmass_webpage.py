@@ -6998,6 +6998,7 @@ def get_gtdbtk(gtdbtk_folder, in_dict=None):
     connect_dict = {}
     out_dict = {}
     bins = 0
+    # get bacterial information
     if os.path.exists(os.path.join(gtdbtk_folder, 'gtdbtk.bac120.summary.tsv')):
         with open(os.path.join(gtdbtk_folder, 'gtdbtk.bac120.summary.tsv')) as f:
             f.readline()
@@ -7011,6 +7012,7 @@ def get_gtdbtk(gtdbtk_folder, in_dict=None):
                 else:
                     cov = 10
                 lastname = None
+                # add bin to dictionary of connections and add weight of bin to all upstream connections
                 for i in phylo.split(';'):
                     if len(i) == 3:
                         the_name = i + the_bin
@@ -7022,6 +7024,7 @@ def get_gtdbtk(gtdbtk_folder, in_dict=None):
                         else:
                             connect_dict[(lastname, the_name)] = cov
                     lastname = the_name
+    # do the same for archaea
     if os.path.exists(os.path.join(gtdbtk_folder, 'gtdbtk.ar122.summary.tsv')):
         with open(os.path.join(gtdbtk_folder, 'gtdbtk.ar122.summary.tsv')) as f:
             f.readline()
@@ -7046,18 +7049,23 @@ def get_gtdbtk(gtdbtk_folder, in_dict=None):
                         else:
                             connect_dict[(lastname, the_name)] = cov
                     lastname = the_name
+    # if not provided with weights just return a dictionary of information
     if in_dict is None:
         return out_dict
     connect_list = []
+    # turn the dictionary into a list of connections
     for i in connect_dict:
         connect_list.append([i[0], i[1], connect_dict[i]])
+    # quit gracefully if there's no output from gtdbtk
     if connect_list == []:
         with open('www/gtdbtk.html', 'w') as o:
             o.write("No gtdbtk output")
         return
     depth_first = []
+    # sort list by weight
     connect_list.sort(key=lambda x: x[2], reverse=True)
     todo = ['d__Archaea', 'd__Bacteria']
+    # order list with a depth first search
     while todo != []:
         getit = todo.pop()
         to_add = []
@@ -7067,11 +7075,8 @@ def get_gtdbtk(gtdbtk_folder, in_dict=None):
                 to_add.append(i[1])
         for i in to_add[::-1]:
             todo.append(i)
-    print(len(connect_list), len(depth_first))
-    if len(connect_list) != len(depth_first):
-        print('adinasdgasdga')
-        sys.exit()
     connect_list = depth_first
+    # create the webpage with sankey diagram, iterations set to 0 to preserve order provided to the webpage
     with open('www/gtdbtk.html', 'w') as o:
         o.write('''<html>
 <body>
@@ -7510,20 +7515,20 @@ def get_busco(busco_folder):
     euk_busco_dict = {}
     best_busco_dict = {}
     for busco_file in os.listdir(busco_folder):
-        if os.path.isdir(busco_file):
+        if os.path.isdir(os.path.join(busco_folder, busco_file)) and not '_tmp' in busco_file:
             bin = busco_file.split('.')[1]
-            with open(os.path.join(busco_folder, busco_file, 'short_summary_%s.txt' % busco_file)) as f:
+            with open(os.path.join(busco_folder, busco_file, 'short_summary_%s.txt' % busco_file[4:])) as f:
                 for i in range(8):
                     line = f.readline()
                     if i == 7:
                         busco_string = line.split()[0]
-            if busco_file.startswith('bacteria_obd9'):
+            if busco_file.startswith('run_bacteria_odb9'):
                 bac_busco_dict[bin] = busco_string
-            elif busco_file.startswith('eukaryota_obd9'):
+            elif busco_file.startswith('run_eukaryota_odb9'):
                 euk_busco_dict[bin] = busco_string
             else:
                 complete_b = float(busco_string.split(':')[1].split('%')[0])
-                kingdom = busco_file.split('.')[0]
+                kingdom = busco_file.split('.')[0][4:]
                 if bin in best_busco_dict:
                     if complete_b > best_busco_dict[bin][2]:
                         best_busco_dict[bin] = (kingdom, busco_string, complete_b)

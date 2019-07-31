@@ -1,4 +1,4 @@
 channels:
   - bioconda
 dependencies:
-  - busco = 3.0.2
+  - busco=3.0.2=py37_12
