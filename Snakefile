@@ -9,6 +9,8 @@ ruleorder: filter_illumina_ref > filter_illumina_ref_interleaved > ill_copy_read
 ruleorder: fastqc > fastqc_long
 ruleorder: polish_isolate_racon_ill > skip_illumina_polish
 ruleorder: final_cov_combo > final_cov_long
+ruleorder: skip_long_assembly > filter_illumina_assembly
+ruleorder: skip_long_assembly > flye_assembly
 
 # Filter reads against a reference (i.e. for removing host contamination of the metagenome)
 rule map_reads_ref:
@@ -255,6 +257,7 @@ rule get_high_cov_contigs:
 
 
 
+
 # filter illumina reads against the nanopore assembly
 rule filter_illumina_assembly:
     input:
@@ -273,7 +276,13 @@ rule filter_illumina_assembly:
         "samtools bam2fq -f 12 {output.bam} | gzip > {output.fastq}"
 
 
-
+rule skip_long_assembly:
+    input:
+        short_reads_unfiltered = config["start_with_short"]
+    output:
+        fastq = "data/short_reads.filt.fastq.gz"
+    shell:
+        "ln {input.short_reads_unfiltered} {output.fastq} && touch data/flye_high_cov.fasta"
 
 # assemble filtered illumina reads with megahit
 rule megahit_assembly:
@@ -375,7 +384,7 @@ rule final_cov_combo:
         short_reads = "data/short_reads.fastq.gz",
         long_reads = "data/long_reads.fastq.gz",
         unicyc_fasta = "data/unicycler_combined.fa",
-        flye_fasta = "data/assembly.pol.fin.fasta"
+        flye_fasta = "data/flye_high_cov.fasta"
     output:
         short_bam = "data/final_short.sort.bam",
         fasta = "data/final_contigs.fasta",
