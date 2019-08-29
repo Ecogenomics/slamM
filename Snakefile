@@ -9,8 +9,8 @@ ruleorder: filter_illumina_ref > filter_illumina_ref_interleaved > ill_copy_read
 ruleorder: fastqc > fastqc_long
 ruleorder: polish_isolate_racon_ill > skip_illumina_polish
 ruleorder: final_cov_combo > final_cov_long
+ruleorder: skip_long_assembly > get_high_cov_contigs
 ruleorder: skip_long_assembly > filter_illumina_assembly
-ruleorder: skip_long_assembly > flye_assembly
 
 # Filter reads against a reference (i.e. for removing host contamination of the metagenome)
 rule map_reads_ref:
@@ -278,11 +278,13 @@ rule filter_illumina_assembly:
 
 rule skip_long_assembly:
     input:
-        short_reads_unfiltered = config["start_with_short"]
+        fastq = "data/short_reads.fastq.gz",
+        unassembled_long = config["unassembled_long"]
     output:
-        fastq = "data/short_reads.filt.fastq.gz"
+        fastq = "data/short_reads.filt.fastq.gz",
+        fasta = "data/flye_high_cov.fasta"
     shell:
-        "ln {input.short_reads_unfiltered} {output.fastq} && touch data/flye_high_cov.fasta"
+        "ln {input.fastq} {output.fastq} && touch data/flye_high_cov.fasta && ln {input.unassembled_long} data/long_reads.fastq.gz"
 
 # assemble filtered illumina reads with megahit
 rule megahit_assembly:
