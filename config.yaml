@@ -28,5 +28,5 @@ gtdbtk_folder:
     /srv/db/gtdbtk/official/release89
 busco_folder:
     /srv/longreads/nanopore/busco
-unaseembled_long:
+unassembled_long:
     none
