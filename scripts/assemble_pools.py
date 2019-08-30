@@ -1,6 +1,5 @@
 import os
 import subprocess
-import sys
 
 
 try:
@@ -13,6 +12,10 @@ out_assemblies = []
 with open(snakemake.input.list) as f:
     for line in f:
         mb_bin, long_reads, length, bases_nano, short_reads, bases_ill = line.split()
+        if os.stat(long_reads).st_size == 0:
+            no_long = True
+        else:
+            no_long = False
         long_reads = long_reads[:-5] + '.fastq.gz'
         long_reads = os.path.abspath(long_reads)
         short_reads_1 = short_reads[:-5] + '.1.fastq.gz'
@@ -24,12 +27,15 @@ with open(snakemake.input.list) as f:
         ill_cov = bases_ill / length
         out_assemblies.append('data/final_assemblies/%s_unicyc/assembly.fasta' % mb_bin)
         if not os.path.exists('data/final_assemblies/%s_unicyc/assembly.fasta' % mb_bin):
-            subprocess.Popen("unicycler -t %d -1 %s -2 %s -l %s -o data/final_assemblies/%s_unicyc" % (snakemake.threads, short_reads_1, short_reads_2, long_reads, mb_bin), shell=True).wait()
+            if no_long:
+                subprocess.Popen("unicycler -t %d -1 %s -2 %s -o data/final_assemblies/%s_unicyc" % (
+                snakemake.threads, short_reads_1, short_reads_2, mb_bin), shell=True).wait()
+            else:
+                subprocess.Popen("unicycler -t %d -1 %s -2 %s -l %s -o data/final_assemblies/%s_unicyc" % (snakemake.threads, short_reads_1, short_reads_2, long_reads, mb_bin), shell=True).wait()
 
 
 
 with open(snakemake.output.fasta, 'w') as o:
-    o.write('assembly\tmax_contig\tcontigs\n')
     count = 0
     for i in out_assemblies:
         if not os.path.exists(i):

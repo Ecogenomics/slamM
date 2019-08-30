@@ -4,7 +4,7 @@ workdir: config["workdir"]
 
 
 
-ruleorder: map_reads_ref > copy_reads
+ruleorder: skip_long_assembly > get_reads_list_ref > copy_reads
 ruleorder: filter_illumina_ref > filter_illumina_ref_interleaved > ill_copy_reads > ill_copy_reads_interleaved
 ruleorder: fastqc > fastqc_long
 ruleorder: polish_isolate_racon_ill > skip_illumina_polish
@@ -282,9 +282,10 @@ rule skip_long_assembly:
         unassembled_long = config["unassembled_long"]
     output:
         fastq = "data/short_reads.filt.fastq.gz",
-        fasta = "data/flye_high_cov.fasta"
+        fasta = "data/flye_high_cov.fasta",
+        long_reads = "data/long_reads.fastq.gz"
     shell:
-        "ln {input.fastq} {output.fastq} && touch data/flye_high_cov.fasta && ln {input.unassembled_long} data/long_reads.fastq.gz"
+        "ln {input.fastq} {output.fastq} && touch {output.fasta} && ln {input.unassembled_long} {output.long_reads}"
 
 # assemble filtered illumina reads with megahit
 rule megahit_assembly:
