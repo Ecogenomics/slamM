@@ -3,3 +3,4 @@ channels:
 dependencies:
   - decorator = 4.4.0
   - nanoplot = 1.27.0
+  - requests = 2.22.0
