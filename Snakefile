@@ -577,7 +577,7 @@ rule process_reads:
     params:
         fastq_pass = config["fastq_pass_dir"]
     shell:
-        "for file in {params.fastq_pass}/*; do cat $file/* | gzip > barcoded_reads/${{file##*/}} ; done && touch {output}"
+        "for file in {params.fastq_pass}/*; do cat $file/* | gzip > barcoded_reads/${{file##*/}}.fastq.gzip ; done && touch {output}"
 
 
 
