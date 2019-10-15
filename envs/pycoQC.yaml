@@ -1,4 +1,4 @@
 channels:
   - bioconda
 dependencies:
-  - pycoqc = 2.2.3
+  - pycoqc >= 2.2.3

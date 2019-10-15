@@ -164,18 +164,20 @@ rule ill_copy_reads:
     conda:
         "envs/seqtk.yaml"
     shell:
-        "seqtk mergepe {input.fastq_1} {input.fastq_2} | gzip > {output}"
+        "rename.sh prefix=SLAM in={input.fastq_1} in2={input.fastq_2} out={output} addpairnum=f"
+
+
+
 
 rule ill_copy_reads_interleaved:
     input:
         fastq = config["short_reads_1"]
     output:
         "data/short_reads.fastq.gz"
-    run:
-        if input.fastq[-3:] == ".gz":
-            shell("ln -s {input.fastq} {output}")
-        else:
-            shell("cat {input.fastq} | gzip > {output}")
+    conda:
+        "envs/seqtk.yaml"
+    shell:
+        "rename.sh prefix=SLAM in={input.fastq_1} out={output} addpairnum=f int=t"
 
 
 rule polish_meta_pilon:
