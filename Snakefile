@@ -566,7 +566,7 @@ rule create_webpage:
 #############################
 
 
-rule run_qcat:
+rule process_reads:
     input:
          html = "QC/read_qc.html",
          image = "QC/velocity.png"
@@ -574,20 +574,11 @@ rule run_qcat:
         "barcoded_reads/done"
     threads:
         config["max_threads"]
-    conda:
-        "envs/qcat.yaml"
     params:
         fastq_pass = config["fastq_pass_dir"]
     shell:
-        "cat {params.fastq_pass}/* | qcat --trim -b barcoded_reads && touch {output}"
+        "for file in {params.fastq_pass}/*; do cat $file/* | gzip > barcoded_reads/${{file##*/}} ; done && touch {output}"
 
-rule process_barcoded_reads:
-    input:
-        done = "barcoded_reads/done"
-    output:
-        summary = "barcoded_reads/summary.txt"
-    script:
-        "scripts/clean_reads.py"
 
 
 rule read_qc:
