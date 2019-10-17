@@ -48,7 +48,8 @@ with open(snakemake.output.fasta, 'w') as o:
             with open(i[:-14] + 'unicycler.log') as f:
                 lastline = f.readlines()[-1]
                 if lastline.startswith("Error: SPAdes failed to produce assemblies. See spades_assembly/assembly/spades.log for more info.") or \
-                    lastline.startswith("Error: none of the SPAdes graphs were suitable for scaffolding in Unicycler"):
+                    lastline.startswith("Error: none of the SPAdes graphs were suitable for scaffolding in Unicycler") or \
+                    lastline.startswith("Error: miniasm assembly failed"):
                     continue
         with open(i) as assembly:
             for line in assembly:
