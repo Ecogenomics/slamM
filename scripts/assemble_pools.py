@@ -11,7 +11,11 @@ except FileExistsError:
 out_assemblies = []
 with open(snakemake.input.list) as f:
     for line in f:
-        mb_bin, long_reads, length, bases_nano, short_reads, bases_ill = line.split()
+        if len(line.split()) == 6:
+            mb_bin, long_reads, length, bases_nano, short_reads, bases_ill = line.split()
+        else:
+            mb_bin, long_reads, length, bases_nano = line.split()
+            short_reads, bases_ill = 'none', 0
         if os.stat(long_reads).st_size == 0:
             no_long = True
         else:
@@ -23,15 +27,17 @@ with open(snakemake.input.list) as f:
         short_reads_1 = os.path.abspath(short_reads_1)
         short_reads_2 = os.path.abspath(short_reads_2)
         length, bases_nano, bases_ill = float(length), float(bases_nano), float(bases_ill)
-        nano_cov = bases_nano / length
-        ill_cov = bases_ill / length
         out_assemblies.append('data/final_assemblies/%s_unicyc/assembly.fasta' % mb_bin)
         if not os.path.exists('data/final_assemblies/%s_unicyc/assembly.fasta' % mb_bin):
-            if no_long:
+            if short_reads == 'none':
+                subprocess.Popen("unicycler -t %d -l %s -o data/final_assemblies/%s_unicyc" % (
+                    snakemake.threads, long_reads, mb_bin), shell=True).wait()
+            elif no_long:
                 subprocess.Popen("unicycler -t %d -1 %s -2 %s -o data/final_assemblies/%s_unicyc" % (
                 snakemake.threads, short_reads_1, short_reads_2, mb_bin), shell=True).wait()
             else:
-                subprocess.Popen("unicycler -t %d -1 %s -2 %s -l %s -o data/final_assemblies/%s_unicyc" % (snakemake.threads, short_reads_1, short_reads_2, long_reads, mb_bin), shell=True).wait()
+                subprocess.Popen("unicycler -t %d -1 %s -2 %s -l %s -o data/final_assemblies/%s_unicyc" % (
+                    snakemake.threads, short_reads_1, short_reads_2, long_reads, mb_bin), shell=True).wait()
 
 
 
