@@ -6918,7 +6918,12 @@ def add_footer():
     </body>
 </html>''')
 
-def create_table(headers, list_of_vals):
+def create_table(headers, list_of_vals, text_table=None):
+    if not text_table is None:
+        with open(text_table, 'w') as o:
+            o.write('\t'.join(headers) + '\n')
+            for i in list_of_vals:
+                o.write('\t'.join(map(str, i)) + '\n')
     out_string = '''                                <table class="table" id="thetable" style="width:100%">
                                     <thead>
                                         <tr>
@@ -7550,14 +7555,12 @@ def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, shor
                 len_dict[name] += len(line.rstrip())
     checkm_dict = {}
     with open(checkm_file) as f:
-        f.readline()
-        f.readline()
-        f.readline()
         for line in f:
-            if line.startswith('-----'):
-                break
-            bin_id, marker_lineage, genomes, markers, marker_sets, e0, e1, e2, e3, e4, e5, completeness, contamination, heterogeneity = [s.strip() for s in line.rstrip().split('  ') if s]
-            checkm_dict[bin_id.split('.')[1]] = [marker_lineage, completeness, contamination, heterogeneity]
+            if line.startswith('-----') or line.startswith('[') or line.startswith('  Bin Id'):
+                pass
+            else:
+                bin_id, marker_lineage, genomes, markers, marker_sets, e0, e1, e2, e3, e4, e5, completeness, contamination, heterogeneity = [s.strip() for s in line.rstrip().split('  ') if s]
+                checkm_dict[bin_id.split('.')[1]] = [marker_lineage, completeness, contamination, heterogeneity]
     outlist = []
     bin_list = []
     gene_size_dict = get_gene_sizes(gff_file)
@@ -7660,7 +7663,7 @@ def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, shor
         o.write(create_header(bin_list, '', 'index.html', long_qc_html, short_qc_html))
         o.write(add_title("Overview of assembly", "assembled into " + str(len(bin_list)) + " bins."))
         o.write(add_main("Overview of bins", "details for each bin"))
-        o.write(create_table(bin_headers, outlist))
+        o.write(create_table(bin_headers, outlist, 'data/bin_summary.tsv'))
         o.write(end_main())
         o.write(add_footer())
 

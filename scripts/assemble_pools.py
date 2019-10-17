@@ -49,6 +49,8 @@ with open(snakemake.output.fasta, 'w') as o:
                 lastline = f.readlines()[-1]
                 if lastline.startswith("Error: SPAdes failed to produce assemblies. See spades_assembly/assembly/spades.log for more info."):
                     continue
+        if not os.path.exists(i):
+            print(lastline)
         with open(i) as assembly:
             for line in assembly:
                 if line.startswith('>'):
