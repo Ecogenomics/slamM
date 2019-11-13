@@ -300,8 +300,10 @@ rule megahit_assembly:
     conda:
         "envs/megahit.yaml"
     shell:
-        "if LC_ALL=C gzip -l {input.fastq} | awk 'NR==2 {{exit($2!=0)}}'; then touch {output.fasta}; " \
-        "else megahit -t {threads} --12 {input.fastq} -o data/mega_assembly && ln data/mega_assembly/final.contigs.fa data/mega_assembly.fasta; fi"
+        "minimumsize=100 && actualsize=$(zcat short_reads.filt.fastq.gz | head -n100 | wc -c) &&" \
+        "if [ $actualsize -ge $minimumsize ]; then " \
+         "megahit -t {threads} --12 {input.fastq} -o data/mega_assembly && ln data/mega_assembly/final.contigs.fa data/mega_assembly.fasta; " \
+        "else touch {output.fasta}; fi"
 
 
 rule metabat_binning_short:
@@ -425,6 +427,21 @@ rule final_cov_long:
         "samtools sort -o {output.bam} - && samtools index {output.bam} && " \
         "ln {input.fasta} {output.fasta} && " \
         "jgi_summarize_bam_contig_depths --percentIdentity 80 --outputDepth data/final.cov {output.bam}"
+
+rule final_cov_multiple:
+    input:
+        coverage_fofn = config["coverage_fofn"],
+        fasta = "data/assembly.pol.rac.fasta"
+    output:
+        fasta = "data/final_contigs.fasta",
+        bam = "data/final_long.sort.bam",
+        coverage = "data/final.cov"
+    conda:
+        "envs/coverm.yaml"
+    threads:
+        config["max_threads"]
+    shell:
+        "coverm "
 
 
 
