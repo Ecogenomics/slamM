@@ -365,9 +365,9 @@ class scalableVectorGraphics:
             self.out += '\nstyle="font-style:normal;font-weight:bold"'
         self.out += '>' + thestring + '</tspan></text>\n'
 
-def run_blast(ref_dir, assembly, working_dir):
+def run_blast(ref_dir, q_dir, working_dir):
     with open(os.path.join(working_dir, "ref.fasta"), 'w') as o:
-        length_dict = {}
+        r_length_dict = {}
         for i in os.listdir(ref_dir):
             with open(os.path.join(ref_dir, i)) as f:
                 seq_list =[]
@@ -380,27 +380,33 @@ def run_blast(ref_dir, assembly, working_dir):
                     else:
                         seq += line.rstrip()
                 seq_list.append(seq)
-                if i.endswith('_draft_genome.fasta'):
-                    name = i[:-19]
-                    for num, j in enumerate(seq_list):
-                        o.write('>draft.%s.%d\n' % (name, num) + j + '\n')
-                        length_dict['draft.%s.%d' % (name, num)] = len(j)
-                elif i.endswith('_complete_genome.fasta'):
-                    name = i[:-22]
-                    for num, j in enumerate(seq_list):
-                        o.write('>%s.%d\n' % (name, num) + j + j + '\n')
-                        length_dict['%s.%d' % (name, num)] = len(j)
-                elif i.endswith('.fasta'):
-                    name = i[:-6]
-                    for num, j in enumerate(seq_list):
-                        o.write('>%s.%d\n' % (name, num) + j + j + '\n')
-                        length_dict['%s.%d' % (name, num)] = len(j)
+                for num, j in enumerate(seq_list):
+                    o.write('>%s.%d\n' % (i.split('.')[1], num) + j + '\n')
+                    r_length_dict['%s.%d' % (i.split('.')[1], num)] = len(j)
+    with open(os.path.join(working_dir, "query.fasta"), 'w') as o:
+        q_length_dict = {}
+        for i in os.listdir(q_dir):
+            with open(os.path.join(q_dir, i)) as f:
+                seq_list = []
+                seq = None
+                for line in f:
+                    if line.startswith('>'):
+                        if not seq is None:
+                            seq_list.append(seq)
+                        seq = ''
+                    else:
+                        seq += line.rstrip()
+                if seq is None:
+                    pass
                 else:
-                    print(i)
+                    seq_list.append(seq)
+                    for num, j in enumerate(seq_list):
+                        o.write('>%s.%d\n' % (i.split('.')[1], num) + j + '\n')
+                        q_length_dict['%s.%d' % (i.split('.')[1], num)] = len(j)
 
-    subprocess.Popen("makeblastdb -out " + working_dir + "/stuff -in " + working_dir + "/ref.fasta  -dbtype nucl", shell=True).wait()
-    subprocess.Popen("blastn -db " + working_dir + "/stuff -query " + assembly + " -out " + working_dir + "/ass_ref.out -outfmt 6 -num_threads 8", shell=True).wait()
-    return(length_dict)
+    # subprocess.Popen("makeblastdb -out " + working_dir + "/stuff -in " + working_dir + "/ref.fasta  -dbtype nucl", shell=True).wait()
+    # subprocess.Popen("blastn -db " + working_dir + "/stuff -query " + working_dir + "/query.fasta -out " + working_dir + "/que_ref.out -outfmt 6 -num_threads 8", shell=True).wait()
+    return(r_length_dict, q_length_dict)
 
 
 def hsl_to_rgb(h, s, l):
@@ -425,16 +431,8 @@ def hsl_to_rgb(h, s, l):
     return (r,g,b)
 
 
-def analyse_blast(length_dict, assembly, working_dir):
-    with open(assembly) as f:
-        clen_dict = {}
-        for line in f:
-            if line.startswith('>'):
-                name = line.split()[0][1:]
-                clen_dict[name] = 0
-            else:
-                clen_dict[name] += len(line.rstrip())
-    with open(working_dir + '/ass_ref.out') as f:
+def draw_matches(r_length_dict, q_length_dict, working_dir):
+    with open(working_dir + '/que_ref.out') as f:
         besthits = {}
         for line in f:
             query, subject, ident, length, mm, indel, qstart, qstop, rstart, rstop, eval, bitscore = line.split()
@@ -449,148 +447,89 @@ def analyse_blast(length_dict, assembly, working_dir):
             else:
                 rev = False
             bitscore = float(bitscore)
-            if not query in besthits:
-                besthits[query] = [[bitscore, subject, rstart, rstop, int(qstart), int(qstop),  int(mm), int(indel), rev]]
-            else:
-                besthits[query].append([bitscore, subject, rstart, rstop, int(qstart), int(qstop),  int(mm), int(indel), rev])
-    unique = 0.8
-    for i in besthits:
-        thelist = besthits[i]
-        newlist = []
-        thelist.sort(key=lambda x:x[1])
-        thelist.sort(key=lambda x:x[0], reverse=True)
-        gotten = set()
-        for j in thelist:
-            qstart, qstop = j[4:6]
-            gotbase, notgot = 0, 0
-            for k in range(qstart, qstop+1):
-                if k in gotten:
-                    gotbase += 1
-                else:
-                    notgot += 1
-            if notgot >= (notgot + gotbase) * unique:# and abs(j[2] - thelist[0][2]) < clen_dict[i]:
-                if not newlist == [] and newlist[0][1] != j[1]:
-                    continue
-                newlist.append(j)
-                for k in range(qstart, qstop+1):
-                    gotten.add(k)
-        besthits[i] = newlist
-    subject_cov = {}
-    subject_mm = {}
-    subject_indel = {}
-    subject_contig_lengths = {}
-    subject_misass = {}
-    draw_dict = {}
-    subject_chimera = {}
-    overage = {}
-    for i in length_dict:
-        subject_cov[i] = set()
-        subject_mm[i] = 0
-        subject_indel[i] = 0
-        subject_misass[i] = 0
-        subject_contig_lengths[i] = []
-        draw_dict[i] = {}
-        overage[i] = 0
-        subject_chimera[i] = 0
-    for i in besthits:
-        besthitlst = besthits[i]
-        besthitlst.sort()
-        if besthitlst[0][8]:
-            besthitlst.sort(key=lambda x: x[4], reverse=True)
+            if not query in besthits or bitscore > besthits[query][0]:
+                besthits[query] = [bitscore, subject, rstart, rstop, int(qstart), int(qstop),  int(mm), int(indel), rev]
+    summary = {}
+    rbin_length = {'unbinned':100}
+    for i in r_length_dict:
+        rbin = i.split('.')[0]
+        if not rbin in rbin_length:
+            rbin_length[rbin] = 0
+        rbin_length[rbin] += r_length_dict[i]
+    for i in q_length_dict:
+        qbin = i.split('.')[0]
+        if not qbin in summary:
+            summary[qbin] = [0, {}, {}]
+        summary[qbin][0] += 1
+        if i in besthits:
+            sbin = besthits[i][1].split('.')[0]
         else:
-            besthitlst.sort(key=lambda x: x[4])
-        lastr = 0
-        for j in besthitlst:
-            if j[2] < lastr:
-                j[2] += length_dict[j[1]]
-                j[3] += length_dict[j[1]]
-            lastr = j[2]
-        subjectset = set()
-        for k in besthits[i]:
-            bitscore, subject, rstart, rstop, qstart, qstop,  mm, indel, rev = k
-            if not subject.startswith('draft'):
-                subjectset.add(subject)
-            for j in range(rstart, rstop+1):
-                subject_cov[subject].add(j)
-            subject_mm[subject] += mm
-            subject_indel[subject] += indel
-            if qstart > 5 and qstop < clen_dict[i] -5:
-                subject_misass[subject] += 1
-            subject_contig_lengths[subject].append(rstop - rstart)
-            if length_dict[subject] < rstop:
-                over = rstop - length_dict[subject]
-                if over > overage[subject]:
-                    overage[subject] = over
-            if i in draw_dict[subject]:
-                draw_dict[subject][i].append([rstart, rstop])
-                # else:
-            else:
-                draw_dict[subject][i] = [[rstart, rstop]]
-        if len(subjectset) > 1:
-            for k in subjectset:
-                subject_chimera[k] += 1
-    print(len(clen_dict) - len(besthits))
-    for i in draw_dict:
-        for j in draw_dict[i]:
-            coords = draw_dict[i][j]
-            for k in coords:
-                if k[1] < overage[i]:
-                    k[0] += length_dict[i]
-                    k[1] += length_dict[i]
+            sbin = "unbinned"
+        if not sbin in summary[qbin][1]:
+            summary[qbin][1][sbin] = 0
+            summary[qbin][2][sbin] = 0
+        summary[qbin][1][sbin] += 1
+        summary[qbin][2][sbin] += q_length_dict[i]
+    for i in summary:
+        out = []
+        thesum = 0
+        for j in summary[i][1]:
+            thesum += summary[i][2][j]
+            out.append([summary[i][2][j], summary[i][1][j], j])
+        out.sort(reverse=True)
+        print(i, summary[i][0])
+        for j in out:
+            print(j[2], j[0]/thesum*100, j[1], j[0]/rbin_length[j[2]]*100)
+    sys.exit()
 
 
 
-    svg = scalableVectorGraphics(5000, 5000)
 
-    curr_x = 0
+    unique = 0.8
+    r_list = []
+    for i in r_length_dict:
+        r_list.append([i.split('.')[0], r_length_dict[i], i])
+    r_list.sort()
     scale = 10000
-    row_width = 50
-    rect_width = 45
-    color_index = 0
-    for i in length_dict:
-        if not i.startswith('draft'):
-            h, s, l = color_index, 0.5, 0.7
-            the_fill = hsl_to_rgb(h, s, l)
-            the_fill_2 = hsl_to_rgb(h,s,l+0.2)
-            color_index += 45
-            coverage = len(subject_cov[i]) / length_dict[i] * 100
-            if len(subject_contig_lengths[i]) == 0:
-                print(i, "no contigs")
-            else:
-                print(i, coverage, subject_mm[i] / sum(subject_contig_lengths[i]) * 10000, subject_indel[i] / sum(subject_contig_lengths[i]) * 10000, subject_misass[i], len(subject_contig_lengths[i]), sum(subject_contig_lengths[i]), length_dict[i])
-            rows = []
-            for z in draw_dict[i]:
-                j = draw_dict[i][z]
-                j.sort()
-                placed = False
-                for q in rows:
-                    collisions = False
-                    for r in q:
-                        if j[-1][1] < r[0][0] - scale*5 or j[0][0] > r[-1][1] + scale*5:
-                            pass
-                        else:
-                            collisions = True
-                            break
-                    if not collisions:
-                        q.append(j)
-                        placed = True
-                        break
-                if not placed:
-                    rows.append([j])
-            svg.drawOutRect(curr_x, 50, length_dict[i]/scale, rect_width*2)
-            leftmost = float('inf')
-            for j in rows:
-                for k in j:
-                    if k[0][0] < leftmost:
-                        leftmost = k[0][0]
-            for num, j in enumerate(rows):
-                y1 = 50 + (num  + 2)* (row_width)
-                for k in j:
-                    svg.drawOutRect(curr_x + (k[0][0]-leftmost)/scale, y1, (k[-1][1] - k[0][0])/scale, rect_width, the_fill_2)
-                    for num, l in enumerate(k):
-                        svg.drawOutRect(curr_x + (l[0]-leftmost)/scale, y1 + num * (rect_width / len(k)), (l[1] - l[0])/scale, rect_width / len(k), the_fill, lt=0.1)
-
-            curr_x += length_dict[i]/scale + 10
+    curr_y = 0
+    r_pos = {}
+    svg = scalableVectorGraphics(5000, 5000)
+    r_x = 20
+    width = 20
+    q_x = 100
+    color_dict = {}
+    curr_h = 0
+    for i in r_list:
+        if i[0] in color_dict:
+            color = color_dict[i[0]]
+        else:
+            color = hsl_to_rgb(curr_h, 0.5, 0.5)
+            curr_h += 35
+        svg.drawOutRect(r_x-width, curr_y, width, i[1]/scale, color)
+        r_pos[i[2]] = curr_y + i[1]/scale/2
+        curr_y += i[1]/scale
+    q_list = []
+    color_dict = {}
+    curr_h = 0
+    for i in q_length_dict:
+        if i in besthits and besthits[i][1] in  r_pos:
+            ry = r_pos[besthits[i][1]]
+        else:
+            ry = float('inf')
+        q_list.append([ry, i.split('.')[0], q_length_dict[i], i])
+    q_list.sort()
+    curr_y = 0
+    print(len(q_list), len(r_list), len(besthits))
+    for i in q_list:
+        if i[0] in color_dict:
+            color = color_dict[i[0]]
+        else:
+            color = hsl_to_rgb(curr_h, 0.5, 0.5)
+            curr_h += 35
+        svg.drawOutRect(q_x, curr_y, width, i[2] / scale, color)
+        if i[0] != float('inf'):
+            svg.drawLine(q_x, curr_y+i[2]/scale/2, r_x, i[0], 2, color)
+        curr_y += i[2] / scale
     svg.writesvg(sys.argv[4])
 
 
@@ -605,10 +544,11 @@ def analyse_blast(length_dict, assembly, working_dir):
 
 
 ref_dir = sys.argv[1]
-assembly = sys.argv[2]
+q_dir = sys.argv[2]
 working_dir = sys.argv[3]
 
 if not os.path.exists(working_dir):
     os.makedirs(working_dir)
-length_dict = run_blast(ref_dir, assembly, working_dir)
-analyse_blast(length_dict, assembly, working_dir)
+r_length_dict, q_length_dict = run_blast(ref_dir, q_dir, working_dir)
+
+draw_matches(r_length_dict, q_length_dict, working_dir)

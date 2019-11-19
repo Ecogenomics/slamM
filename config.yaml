@@ -30,5 +30,5 @@ busco_folder:
     /srv/longreads/nanopore/busco
 unassembled_long:
     none
-read_bin_fofn:
+profile_read_list:
     none

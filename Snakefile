@@ -386,7 +386,7 @@ rule assemble_pools:
         "scripts/assemble_pools.py"
 
 
-rule final_cov_combo:
+rule final_cov:
     input:
         short_reads = "data/short_reads.fastq.gz",
         long_reads = "data/long_reads.fastq.gz",
@@ -406,8 +406,7 @@ rule final_cov_combo:
         "minimap2 -t {threads} -ax map-ont -a {output.fasta} {input.long_reads} |  samtools view -b | " \
         "samtools sort -o {output.long_bam} - && samtools index {output.long_bam} && " \
         "minimap2 -ax sr -t {threads} {output.fasta} {input.short_reads} |  samtools view -b | "\
-        "samtools sort -o {output.short_bam} - && samtools index {output.short_bam} && "\
-        "jgi_summarize_bam_contig_depths --outputDepth data/final.cov {output.short_bam}"
+        "samtools sort -o {output.short_bam} - && samtools index {output.short_bam}"
 
 
 rule final_cov_long:
@@ -417,7 +416,6 @@ rule final_cov_long:
     output:
         fasta = "data/final_contigs.fasta",
         bam = "data/final_long.sort.bam",
-        coverage = "data/final.cov"
     conda:
         "envs/metabat2.yaml"
     threads:
@@ -425,29 +423,76 @@ rule final_cov_long:
     shell:
         "minimap2 -t {threads} -ax map-ont -a {input.fasta} {input.long_reads} |  samtools view -b | " \
         "samtools sort -o {output.bam} - && samtools index {output.bam} && " \
-        "ln {input.fasta} {output.fasta} && " \
-        "jgi_summarize_bam_contig_depths --percentIdentity 80 --outputDepth data/final.cov {output.bam}"
+        "ln {input.fasta} {output.fasta}"
 
-rule final_cov_multiple:
+rule prepare_binning_files:
     input:
-        coverage_fofn = config["coverage_fofn"],
-        fasta = "data/assembly.pol.rac.fasta"
-    output:
+        long_reads = "data/long_reads.fastq.gz",
         fasta = "data/final_contigs.fasta",
-        bam = "data/final_long.sort.bam",
-        coverage = "data/final.cov"
+    output:
+        maxbin_coverage = "data/maxbin.cov.list",
+        bams = "data/binning_bams/done",
+        metabat_coverage = "data/metabat.cov"
     conda:
-        "envs/coverm.yaml"
+        "envs/metabat2.yaml"
+    threads:
+        config["max_threads"]
+    script:
+        "script/get_coverage.py"
+
+
+rule maxbin_binning:
+    input:
+        fasta = "data/final_contigs.fasta",
+        maxbin_cov = "data/maxbin.cov.list"
+    output:
+        "data/maxbin_bins/done"
+    conda:
+        "envs/maxbin2.yaml"
+    shell:
+        "mkdir -p data/maxbin2_bins && " \
+        "run_MaxBin.pl -contig {input.fasta} -abund_list {input.maxbin_cov} -out data/baxbin2_bins/baxbin"
+
+rule binsanity_binning:
+    input:
+        fasta = "data/final_contigs.fasta",
+        bam_done = "data/binning_bams/done"
+    output:
+        "data/binsanity_bins/done"
+    conda:
+        "envs/binsanity.yaml"
     threads:
         config["max_threads"]
     shell:
-        "coverm "
+        "simplify-fasta -i inputFasta -o outputFasta && " \ 
+        "get-ids -f data -l final_contigs.fasta -o data/binsanityids.txt -x 1000 && " \
+        "Binsanity-profile -i {input.fasta} -s directory/to/BAM/files --ids data/binsanityids.txt -c data/binsanity.cov && " \
+        "Binsanity-wf -f data -l binsanity_contigs.fasta -c data/binsanity.cov -o data/binsanity_bins"
 
+
+
+
+rule concoct_binning:
+    input:
+        fasta = "data/final_contigs.fasta",
+        bam_done = "data/binning_bams/done"
+    output:
+        "data/concoct_bins/done"
+    conda:
+        "envs/concoct.yaml"
+    shell:
+        "mkdir -p data/concoct_working && " \
+        "cut_up_fasta.py {input.fasta} -c 10000 -o 0 --merge_last -b data/concoct_working/contigs_10K.bed > data/concoct_working/contigs_10K.fa &&" \
+        "concoct_coverage_table.py data/concoct_working/contigs_10K.bed data/binning_bams/*.sorted.bam > data/concoct_working/coverage_table.tsv &&" \
+        "concoct --composition_file data/concoct_working/contigs_10K.fa --coverage_file data/concoct_working/coverage_table.tsv -b data/concoct_working/ &&" \
+        "merge_cutup_clustering.py data/concoct_working/clustering_gt1000.csv > data/concoct_working/clustering_merged.csv &&" \
+        "mkdir -p data/concoct_bins &&" \
+        "extract_fasta_bins.py {input.fasta} data/concoct_working/clustering_merged.csv --output_path data/concoct_bins/"
 
 
 rule metabat_binning_2:
     input:
-        coverage = "data/final.cov",
+        coverage = "data/metabat.cov",
         fasta = "data/final_contigs.fasta"
     output:
         metabat_done = "data/metabat_bins_2/done"
@@ -455,8 +500,25 @@ rule metabat_binning_2:
         "envs/metabat2.yaml"
     shell:
         "mkdir -p data/metabat_bins_2 && " \
+        "jgi_summarize_bam_contig_depths --percentIdentity 80 --outputDepth data/final.cov data/bams/ &&" \
         "metabat --seed 89 -i {input.fasta} -a {input.coverage} -o data/metabat_bins_2/binned_contigs && " \
         "touch data/metabat_bins_2/done"
+
+
+rule das_tool:
+    input:
+        fasta = "data/final_contigs.fasta"
+    output:
+        das_tool_done = "data/das_tool_bins/done"
+    conda:
+        "envs/das_tool.yaml"
+    shell:
+        "Fasta_to_Scaffolds2Bin.sh -i data/metabat2_bins -e fasta > data/metabta2_bins.tsv && " \
+        "Fasta_to_Scaffolds2Bin.sh -i data/binsanity_bins -e fasta > data/binsanity2_bins.tsv && " \
+        "Fasta_to_Scaffolds2Bin.sh -i data/concoct_bins -e fasta > data/.tsv && " \
+        "Fasta_to_Scaffolds2Bin.sh -i data/maxbin2_bins -e fasta > my_scaffolds2bin.tsv && " \
+        "DAS_Tool -i methodA.scaffolds2bin,...,methodN.scaffolds2bin -c {input.fasta} -o myOutput"
+
 
 rule checkm:
     input:
