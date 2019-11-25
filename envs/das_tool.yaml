@@ -1,4 +1,4 @@
 channels:
   - bioconda
 dependencies:
-  - concoct >= 0.2.9.5
+  - das_tool >= 1.1.1

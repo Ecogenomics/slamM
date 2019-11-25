@@ -8,7 +8,7 @@ ruleorder: skip_long_assembly > get_reads_list_ref > copy_reads
 ruleorder: filter_illumina_ref > filter_illumina_ref_interleaved > ill_copy_reads > ill_copy_reads_interleaved
 ruleorder: fastqc > fastqc_long
 ruleorder: polish_isolate_racon_ill > skip_illumina_polish
-ruleorder: final_cov_combo > final_cov_long
+ruleorder: combine_assemblies > combine_long_only
 ruleorder: skip_long_assembly > get_high_cov_contigs
 ruleorder: skip_long_assembly > filter_illumina_assembly
 
@@ -300,7 +300,7 @@ rule megahit_assembly:
     conda:
         "envs/megahit.yaml"
     shell:
-        "minimumsize=100 && actualsize=$(zcat short_reads.filt.fastq.gz | head -n100 | wc -c) &&" \
+        "minimumsize=500000 && actualsize=$(stat -c%s data/short_reads.filt.fastq.gz) && " \
         "if [ $actualsize -ge $minimumsize ]; then " \
          "megahit -t {threads} --12 {input.fastq} -o data/mega_assembly && ln data/mega_assembly/final.contigs.fa data/mega_assembly.fasta; " \
         "else touch {output.fasta}; fi"
@@ -386,7 +386,7 @@ rule assemble_pools:
         "scripts/assemble_pools.py"
 
 
-rule final_cov:
+rule combine_assemblies:
     input:
         short_reads = "data/short_reads.fastq.gz",
         long_reads = "data/long_reads.fastq.gz",
@@ -395,8 +395,7 @@ rule final_cov:
     output:
         short_bam = "data/final_short.sort.bam",
         fasta = "data/final_contigs.fasta",
-        long_bam = "data/final_long.sort.bam",
-        coverage = "data/final.cov"
+        long_bam = "data/final_long.sort.bam"
     conda:
         "envs/metabat2.yaml"
     threads:
@@ -409,7 +408,7 @@ rule final_cov:
         "samtools sort -o {output.short_bam} - && samtools index {output.short_bam}"
 
 
-rule final_cov_long:
+rule combine_long_only:
     input:
         long_reads = "data/long_reads.fastq.gz",
         fasta = "data/assembly.pol.rac.fasta"
@@ -438,7 +437,7 @@ rule prepare_binning_files:
     threads:
         config["max_threads"]
     script:
-        "script/get_coverage.py"
+        "scripts/get_coverage.py"
 
 
 rule maxbin_binning:
@@ -446,30 +445,13 @@ rule maxbin_binning:
         fasta = "data/final_contigs.fasta",
         maxbin_cov = "data/maxbin.cov.list"
     output:
-        "data/maxbin_bins/done"
+        "data/maxbin2_bins/done"
     conda:
         "envs/maxbin2.yaml"
     shell:
         "mkdir -p data/maxbin2_bins && " \
-        "run_MaxBin.pl -contig {input.fasta} -abund_list {input.maxbin_cov} -out data/baxbin2_bins/baxbin"
-
-rule binsanity_binning:
-    input:
-        fasta = "data/final_contigs.fasta",
-        bam_done = "data/binning_bams/done"
-    output:
-        "data/binsanity_bins/done"
-    conda:
-        "envs/binsanity.yaml"
-    threads:
-        config["max_threads"]
-    shell:
-        "simplify-fasta -i inputFasta -o outputFasta && " \ 
-        "get-ids -f data -l final_contigs.fasta -o data/binsanityids.txt -x 1000 && " \
-        "Binsanity-profile -i {input.fasta} -s directory/to/BAM/files --ids data/binsanityids.txt -c data/binsanity.cov && " \
-        "Binsanity-wf -f data -l binsanity_contigs.fasta -c data/binsanity.cov -o data/binsanity_bins"
-
-
+        "run_MaxBin.pl -contig {input.fasta} -abund_list {input.maxbin_cov} -out data/maxbin2_bins/maxbin && " \
+        "touch data/maxbin2_bins/done"
 
 
 rule concoct_binning:
@@ -480,14 +462,17 @@ rule concoct_binning:
         "data/concoct_bins/done"
     conda:
         "envs/concoct.yaml"
+    threads:
+        config["max_threads"]
     shell:
         "mkdir -p data/concoct_working && " \
         "cut_up_fasta.py {input.fasta} -c 10000 -o 0 --merge_last -b data/concoct_working/contigs_10K.bed > data/concoct_working/contigs_10K.fa &&" \
-        "concoct_coverage_table.py data/concoct_working/contigs_10K.bed data/binning_bams/*.sorted.bam > data/concoct_working/coverage_table.tsv &&" \
-        "concoct --composition_file data/concoct_working/contigs_10K.fa --coverage_file data/concoct_working/coverage_table.tsv -b data/concoct_working/ &&" \
+        "concoct_coverage_table.py data/concoct_working/contigs_10K.bed data/binning_bams/*.sort.bam > data/concoct_working/coverage_table.tsv &&" \
+        "concoct --threads {threads}  --composition_file data/concoct_working/contigs_10K.fa --coverage_file data/concoct_working/coverage_table.tsv -b data/concoct_working/ &&" \
         "merge_cutup_clustering.py data/concoct_working/clustering_gt1000.csv > data/concoct_working/clustering_merged.csv &&" \
         "mkdir -p data/concoct_bins &&" \
-        "extract_fasta_bins.py {input.fasta} data/concoct_working/clustering_merged.csv --output_path data/concoct_bins/"
+        "extract_fasta_bins.py {input.fasta} data/concoct_working/clustering_merged.csv --output_path data/concoct_bins/ &&" \
+        "touch data/concoct_bins/done"
 
 
 rule metabat_binning_2:
@@ -495,34 +480,51 @@ rule metabat_binning_2:
         coverage = "data/metabat.cov",
         fasta = "data/final_contigs.fasta"
     output:
-        metabat_done = "data/metabat_bins_2/done"
+        metabat_done = "data/metabat_bins_2/done",
+        metabat_sspec = "data/metabat_bins_sspec/done",
+        metabat_vspec = "data/metabat_bins_ssens/done",
+        metabat_sense = "data/metabat_bins_sens/done"
     conda:
         "envs/metabat2.yaml"
     shell:
         "mkdir -p data/metabat_bins_2 && " \
-        "jgi_summarize_bam_contig_depths --percentIdentity 80 --outputDepth data/final.cov data/bams/ &&" \
         "metabat --seed 89 -i {input.fasta} -a {input.coverage} -o data/metabat_bins_2/binned_contigs && " \
-        "touch data/metabat_bins_2/done"
+        "touch data/metabat_bins_2/done && " \
+        "metabat1 --seed 89 --sensitive -i {input.fasta} -a {input.coverage} -o data/metabat_bins_sens/binned_contigs && " \
+        "touch data/metabat_bins_sens/done && " \
+        "metabat1 --seed 89 --supersensitive -i {input.fasta} -a {input.coverage} -o data/metabat_bins_ssens/binned_contigs && " \
+        "touch data/metabat_bins_ssens/done && " \
+        "metabat1 --seed 89 --superspecific -i {input.fasta} -a {input.coverage} -o data/metabat_bins_sspec/binned_contigs && " \
+        "touch data/metabat_bins_sspec/done"
 
 
 rule das_tool:
     input:
-        fasta = "data/final_contigs.fasta"
+        fasta = "data/final_contigs.fasta",
+        metabat2_done = "data/metabat_bins_2/done",
+        concoct_done = "data/concoct_bins/done",
+        maxbin_done = "data/maxbin2_bins/done",
+        metabat_sspec = "data/metabat_bins_sspec/done",
+        metabat_ssens = "data/metabat_bins_ssens/done",
+        metabat_sense = "data/metabat_bins_sens/done"
     output:
         das_tool_done = "data/das_tool_bins/done"
     conda:
         "envs/das_tool.yaml"
     shell:
-        "Fasta_to_Scaffolds2Bin.sh -i data/metabat2_bins -e fasta > data/metabta2_bins.tsv && " \
-        "Fasta_to_Scaffolds2Bin.sh -i data/binsanity_bins -e fasta > data/binsanity2_bins.tsv && " \
-        "Fasta_to_Scaffolds2Bin.sh -i data/concoct_bins -e fasta > data/.tsv && " \
-        "Fasta_to_Scaffolds2Bin.sh -i data/maxbin2_bins -e fasta > my_scaffolds2bin.tsv && " \
-        "DAS_Tool -i methodA.scaffolds2bin,...,methodN.scaffolds2bin -c {input.fasta} -o myOutput"
+        "Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_2 -e fa > data/metabat_bins_2.tsv && " \
+        "Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_sspec -e fa > data/metabta_bins_sspec.tsv && " \
+        "Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_ssens -e fa > data/metabta_bins_ssens.tsv && " \
+        "Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_sens -e fa > data/metabta_bins_sens.tsv && " \
+        "Fasta_to_Scaffolds2Bin.sh -i data/concoct_bins -e fa > data/concoct_bins.tsv && " \
+        "Fasta_to_Scaffolds2Bin.sh -i data/maxbin2_bins -e fasta > data/maxbin_bins.tsv && " \
+        "DAS_Tool -i data/metabat_bins_2.tsv,data/metabta_bins_sspec.tsv,data/metabta_bins_ssens.tsv,data/metabta_bins_sens.tsv,data/concoct_bins.tsv,data/maxbin_bins.tsv -c {input.fasta} -o data/das_tool_bins/das_tool && " \
+        "touch data/das_tool_bins/done"
 
 
 rule checkm:
     input:
-        "data/metabat_bins_2/done"
+        "data/das_tool_bins/done"
     output:
         "data/checkm.out"
     conda:
@@ -533,7 +535,7 @@ rule checkm:
         config["max_threads"]
     shell:
         'var="$(which checkm)" && sed -i "s|/srv/whitlam/bio/db/checkm_data/1.0.0|{params.checkm_folder}|g" ${{var:0:-11}}/lib/python2.7/site-packages/checkm/DATA_CONFIG && ' \
-        'checkm lineage_wf -t {threads} -x fa data/metabat_bins_2 data/checkm > data/checkm.out'
+        'checkm lineage_wf -t {threads} -x fa data/das_tool_bins data/checkm > data/checkm.out'
 
 
 rule fastqc:
@@ -580,7 +582,7 @@ rule prodigal:
 
 rule gtdbtk:
     input:
-        "data/metabat_bins_2/done"
+        "data/das_tool_bins/done"
     output:
         done = "data/gtdbtk/done"
     params:
@@ -591,12 +593,12 @@ rule gtdbtk:
         config["max_threads"]
     shell:
         "export GTDBTK_DATA_PATH={params.gtdbtk_folder} && " \
-        "gtdbtk classify_wf --cpus {threads} --extension fa --genome_dir data/metabat_bins_2 --out_dir data/gtdbtk && touch data/gtdbtk/done"
+        "gtdbtk classify_wf --cpus {threads} --extension fa --genome_dir data/das_tool_bins --out_dir data/gtdbtk && touch data/gtdbtk/done"
 
 
 rule busco:
     input:
-        "data/metabat_bins_2/done"
+        "data/das_tool_bins/done"
     output:
         done = "data/busco/done"
     params:
@@ -607,7 +609,7 @@ rule busco:
         config["max_threads"]
     shell:
         "mkdir -p data/busco && cd data/busco && minimumsize=500000 && " \
-        "for file in ../metabat_bins_2/*.fa; do " \
+        "for file in ../das_tool_bins/*.fa; do " \
         "actualsize=$(wc -c <\"$file\"); " \
         "if [ $actualsize -ge $minimumsize ]; then " \
         "run_busco -q -c {threads} -t bac_tmp.${{file:33:-3}} -i $file -o bacteria_odb9.${{file:33:-3}} -l {params.busco_folder}/bacteria_odb9 -m geno; " \
@@ -623,7 +625,7 @@ rule busco:
 rule create_webpage:
     input:
         checkm_file = "data/checkm.out",
-        metabat_bins = "data/metabat_bins_2/done",
+        metabat_bins = "data/das_tool_bins/done",
         busco_done = "data/busco/done",
         fasta = "data/final_contigs.fasta",
         long_reads_qc_html = "www/nanoplot/longReadsNanoPlot-report.html",
