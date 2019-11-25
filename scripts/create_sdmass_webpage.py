@@ -7010,7 +7010,7 @@ def get_gtdbtk(gtdbtk_folder, in_dict=None):
             for line in f:
                 bins += 1
                 the_bin, phylo, nearest, ani_radius, ani_tax, ani = line.split('\t')[:6]
-                the_bin = the_bin.split('.')[-1]
+               # the_bin = the_bin.split('.')[-1]
                 out_dict[the_bin] = (nearest, ani, phylo)
                 if not in_dict is None:
                     cov = in_dict[the_bin]
@@ -7036,7 +7036,7 @@ def get_gtdbtk(gtdbtk_folder, in_dict=None):
             for line in f:
                 bins += 1
                 the_bin, phylo, nearest, ani_radius, ani_tax, ani = line.split('\t')[:6]
-                the_bin = the_bin.split('.')[-1]
+              #  the_bin = the_bin.split('.')[-1]
                 out_dict[the_bin] = (nearest, ani, phylo)
                 if not in_dict is None:
                     cov = in_dict[the_bin]
@@ -7521,7 +7521,8 @@ def get_busco(busco_folder):
     best_busco_dict = {}
     for busco_file in os.listdir(busco_folder):
         if os.path.isdir(os.path.join(busco_folder, busco_file)) and not '_tmp' in busco_file:
-            bin = busco_file.split('.')[1]
+           # bin = busco_file.split('.')[1]
+            bin = busco_file[:-3]
             with open(os.path.join(busco_folder, busco_file, 'short_summary_%s.txt' % busco_file[4:])) as f:
                 for i in range(8):
                     line = f.readline()
@@ -7544,7 +7545,7 @@ def get_busco(busco_folder):
 
 
 
-def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, short_bam, gff_file, long_qc_html, short_qc_html, gtdbtk_dir, busco_dir, min_contig_size=100000):
+def create_main_page(outfile, fasta, checkm_file, contig_folder, long_bam, short_bam, gff_file, long_qc_html, short_qc_html, gtdbtk_dir, busco_dir, min_contig_size=100000):
     with open(fasta) as f:
         len_dict = {}
         for line in f:
@@ -7560,15 +7561,15 @@ def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, shor
                 pass
             else:
                 bin_id, marker_lineage, genomes, markers, marker_sets, e0, e1, e2, e3, e4, e5, completeness, contamination, heterogeneity = [s.strip() for s in line.rstrip().split('  ') if s]
-                checkm_dict[bin_id.split('.')[1]] = [marker_lineage, completeness, contamination, heterogeneity]
+                checkm_dict[bin_id] = [marker_lineage, completeness, contamination, heterogeneity]
     outlist = []
     bin_list = []
     gene_size_dict = get_gene_sizes(gff_file)
-    for i in os.listdir(metabat_folder):
-        if not i.startswith('binned_contigs'):
+    for i in os.listdir(contig_folder):
+        if not i.endswith('.fa'):
             continue
-        bin = i.split('.')[1]
-        bin_list.append(bin)
+#        bin = i.split('.')[1]
+        bin_list.append(i[:-3])
     gtdbtk_dict = get_gtdbtk(gtdbtk_dir)
     busco_bac_dict, busco_euk_dict, busco_best_dict = get_busco(busco_dir)
     phylo_dict = {}
@@ -7576,12 +7577,12 @@ def create_main_page(outfile, fasta, checkm_file, metabat_folder, long_bam, shor
         phylo_dict[i] = gtdbtk_dict[i][2]
         gtdbtk_dict[i] = gtdbtk_dict[i][0] + ' (' + gtdbtk_dict[i][1] + '%)'
     cov_dict = {}
-    for i in os.listdir(metabat_folder):
-        if not i.startswith('binned_contigs'):
+    for i in os.listdir(contig_folder):
+        if not i.endswith('.fa'):
             continue
-        bin = i.split('.')[1]
+        bin = i[:-3]#.split('.')[1]
         ctgs = []
-        with open(os.path.join(metabat_folder, i)) as fa:
+        with open(os.path.join(contig_folder, i)) as fa:
             for line in fa:
                 if line.startswith('>'):
                     ctg_name = line.split()[0][1:]
@@ -7711,7 +7712,7 @@ def create_bin_page(headers, bin_details, ctg_details, outfile, bin_list, long_q
 
 
 checkm_file = snakemake.input.checkm_file
-metabat_bins = snakemake.input.metabat_bins[:-5]
+contig_folder = "data/das_tool_bins/das_tool_DASTool_bins/"
 fasta = snakemake.input.fasta
 long_html = snakemake.input.long_reads_qc_html[4:]
 short_html = snakemake.input.short_reads_qc_html[4:]
@@ -7739,4 +7740,4 @@ else:
     short_bam = None
 
 
-create_main_page("www/index.html", fasta, checkm_file, metabat_bins, long_bam, short_bam, gff_file, long_html, short_html, gtdbtk_dir, busco_dir)
+create_main_page("www/index.html", fasta, checkm_file, contig_folder, long_bam, short_bam, gff_file, long_html, short_html, gtdbtk_dir, busco_dir)
