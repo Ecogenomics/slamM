@@ -616,12 +616,12 @@ rule busco:
         "for file in ../das_tool_bins/das_tool_DASTool_bins/*.fa; do " \
         "actualsize=$(wc -c <\"$file\"); " \
         "if [ $actualsize -ge $minimumsize ]; then " \
-        "run_busco -q -c {threads} -t bac_tmp.${{file:33:-3}} -i $file -o bacteria_odb9.${{file:40:-3}} -l {params.busco_folder}/bacteria_odb9 -m geno; " \
-        "run_busco -q -c {threads} -t euk_tmp.${{file:33:-3}} -i $file -o eukaryota_odb9.${{file:40:-3}} -l {params.busco_folder}/eukaryota_odb9 -m geno; " \
-        "run_busco -q -c {threads} -t emb_tmp.${{file:33:-3}} -i $file -o embryophyta_odb9.${{file:40:-3}} -l {params.busco_folder}/embryophyta_odb9 -m geno; " \
-        "run_busco -q -c {threads} -t fun_tmp.${{file:33:-3}} -i $file -o fungi_odb9.${{file:40:-3}} -l {params.busco_folder}/fungi_odb9 -m geno; " \
-        "run_busco -q -c {threads} -t met_tmp.${{file:33:-3}} -i $file -o metazoa_odb9.${{file:40:-3}} -l {params.busco_folder}/metazoa_odb9 -m geno; " \
-        "run_busco -q -c {threads} -t pro_tmp.${{file:33:-3}} -i $file -o protists_ensembl.${{file:40:-3}} -l {params.busco_folder}/protists_ensembl -m geno; " \
+        "run_busco -q -c {threads} -t bac_tmp.${{file:33:-3}} -i $file -o bacteria_odb9.${{file:39:-3}} -l {params.busco_folder}/bacteria_odb9 -m geno; " \
+        "run_busco -q -c {threads} -t euk_tmp.${{file:33:-3}} -i $file -o eukaryota_odb9.${{file:39:-3}} -l {params.busco_folder}/eukaryota_odb9 -m geno; " \
+        "run_busco -q -c {threads} -t emb_tmp.${{file:33:-3}} -i $file -o embryophyta_odb9.${{file:39:-3}} -l {params.busco_folder}/embryophyta_odb9 -m geno; " \
+        "run_busco -q -c {threads} -t fun_tmp.${{file:33:-3}} -i $file -o fungi_odb9.${{file:39:-3}} -l {params.busco_folder}/fungi_odb9 -m geno; " \
+        "run_busco -q -c {threads} -t met_tmp.${{file:33:-3}} -i $file -o metazoa_odb9.${{file:39:-3}} -l {params.busco_folder}/metazoa_odb9 -m geno; " \
+        "run_busco -q -c {threads} -t pro_tmp.${{file:33:-3}} -i $file -o protists_ensembl.${{file:39:-3}} -l {params.busco_folder}/protists_ensembl -m geno; " \
         "fi; done && " \
         "cd ../../ && touch data/busco/done"
 

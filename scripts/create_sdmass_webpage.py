@@ -7522,7 +7522,7 @@ def get_busco(busco_folder):
     for busco_file in os.listdir(busco_folder):
         if os.path.isdir(os.path.join(busco_folder, busco_file)) and not '_tmp' in busco_file:
            # bin = busco_file.split('.')[1]
-            bin = busco_file[:-3]
+            bin = '.'.join(busco_file.split('.')[1:])
             with open(os.path.join(busco_folder, busco_file, 'short_summary_%s.txt' % busco_file[4:])) as f:
                 for i in range(8):
                     line = f.readline()
