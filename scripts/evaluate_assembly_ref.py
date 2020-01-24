@@ -438,7 +438,7 @@ def analyse_blast(length_dict, assembly, working_dir):
         besthits = {}
         for line in f:
             query, subject, ident, length, mm, indel, qstart, qstop, rstart, rstop, eval, bitscore = line.split()
-            if float(ident) < 96 or int(length) < 5000:
+            if float(ident) < 96:
                 continue
             qstart = int(qstart)
             rstart = int(rstart)
@@ -459,6 +459,7 @@ def analyse_blast(length_dict, assembly, working_dir):
         newlist = []
         thelist.sort(key=lambda x:x[1])
         thelist.sort(key=lambda x:x[0], reverse=True)
+
         gotten = set()
         for j in thelist:
             qstart, qstop = j[4:6]
@@ -493,30 +494,17 @@ def analyse_blast(length_dict, assembly, working_dir):
         overage[i] = 0
         subject_chimera[i] = 0
     for i in besthits:
-        besthitlst = besthits[i]
-        besthitlst.sort()
-        if besthitlst[0][8]:
-            besthitlst.sort(key=lambda x: x[4], reverse=True)
-        else:
-            besthitlst.sort(key=lambda x: x[4])
-        lastr = 0
-        for j in besthitlst:
-            if j[2] < lastr:
-                j[2] += length_dict[j[1]]
-                j[3] += length_dict[j[1]]
-            lastr = j[2]
+        subject_contig_lengths[besthits[i][0][1]].append(clen_dict[i])
         subjectset = set()
         for k in besthits[i]:
             bitscore, subject, rstart, rstop, qstart, qstop,  mm, indel, rev = k
-            if not subject.startswith('draft'):
-                subjectset.add(subject)
+            subjectset.add(subject)
             for j in range(rstart, rstop+1):
                 subject_cov[subject].add(j)
             subject_mm[subject] += mm
             subject_indel[subject] += indel
             if qstart > 5 and qstop < clen_dict[i] -5:
                 subject_misass[subject] += 1
-            subject_contig_lengths[subject].append(rstop - rstart)
             if length_dict[subject] < rstop:
                 over = rstop - length_dict[subject]
                 if over > overage[subject]:
@@ -529,68 +517,57 @@ def analyse_blast(length_dict, assembly, working_dir):
         if len(subjectset) > 1:
             for k in subjectset:
                 subject_chimera[k] += 1
-    print(len(clen_dict) - len(besthits))
-    for i in draw_dict:
-        for j in draw_dict[i]:
-            coords = draw_dict[i][j]
-            for k in coords:
-                if k[1] < overage[i]:
-                    k[0] += length_dict[i]
-                    k[1] += length_dict[i]
 
-
-
+    new_scl = {}
+    for i in subject_contig_lengths:
+        if i.startswith('draft'):
+            name = i.split('.')[1]
+        else:
+            name = i.split('.')[0]
+        if not name in new_scl:
+            new_scl[name] = []
+        new_scl[name] += subject_contig_lengths[i]
+    for i in new_scl:
+        new_scl[i].sort(reverse=True)
+    new_ld = {}
+    for i in length_dict:
+        if i.startswith('draft'):
+            name = i.split('.')[1]
+        else:
+            name = i.split('.')[0]
+        if not name in new_ld:
+            new_ld[name] = 0
+        new_ld[name] += length_dict[i]
+    thelist = list(new_ld)
     svg = scalableVectorGraphics(5000, 5000)
-
     curr_x = 0
     scale = 10000
     row_width = 50
     rect_width = 45
     color_index = 0
+    for i in thelist:
+        h, s, l = color_index, 0.5, 0.7
+        the_fill = hsl_to_rgb(h, s, l)
+        the_fill_2 = hsl_to_rgb(h,s,l-0.5)
+        the_fill_3 = hsl_to_rgb(h,s,l+0.2)
+        color_index += 45
+        svg.drawOutRect(curr_x, 0, new_ld[i] / scale, rect_width, the_fill_3, the_fill_2, lt=1)
+        if i in new_scl:
+            curr_x_2 = curr_x
+            for j in new_scl[i]:
+                svg.drawOutRect(curr_x_2, row_width, j / scale, rect_width, the_fill, the_fill_2, lt=1)
+                curr_x_2 += j/scale
+        curr_x += new_ld[i] / scale + 10
+
     for i in length_dict:
         if not i.startswith('draft'):
-            h, s, l = color_index, 0.5, 0.7
-            the_fill = hsl_to_rgb(h, s, l)
-            the_fill_2 = hsl_to_rgb(h,s,l+0.2)
-            color_index += 45
             coverage = len(subject_cov[i]) / length_dict[i] * 100
             if len(subject_contig_lengths[i]) == 0:
                 print(i, "no contigs")
             else:
-                print(i, coverage, subject_mm[i] / sum(subject_contig_lengths[i]) * 10000, subject_indel[i] / sum(subject_contig_lengths[i]) * 10000, subject_misass[i], len(subject_contig_lengths[i]), sum(subject_contig_lengths[i]), length_dict[i])
-            rows = []
-            for z in draw_dict[i]:
-                j = draw_dict[i][z]
-                j.sort()
-                placed = False
-                for q in rows:
-                    collisions = False
-                    for r in q:
-                        if j[-1][1] < r[0][0] - scale*5 or j[0][0] > r[-1][1] + scale*5:
-                            pass
-                        else:
-                            collisions = True
-                            break
-                    if not collisions:
-                        q.append(j)
-                        placed = True
-                        break
-                if not placed:
-                    rows.append([j])
-            svg.drawOutRect(curr_x, 50, length_dict[i]/scale, rect_width*2)
-            leftmost = float('inf')
-            for j in rows:
-                for k in j:
-                    if k[0][0] < leftmost:
-                        leftmost = k[0][0]
-            for num, j in enumerate(rows):
-                y1 = 50 + (num  + 2)* (row_width)
-                for k in j:
-                    svg.drawOutRect(curr_x + (k[0][0]-leftmost)/scale, y1, (k[-1][1] - k[0][0])/scale, rect_width, the_fill_2)
-                    for num, l in enumerate(k):
-                        svg.drawOutRect(curr_x + (l[0]-leftmost)/scale, y1 + num * (rect_width / len(k)), (l[1] - l[0])/scale, rect_width / len(k), the_fill, lt=0.1)
-
-            curr_x += length_dict[i]/scale + 10
+                print(i, coverage, subject_mm[i] / sum(subject_contig_lengths[i]) * 10000,
+                      subject_indel[i] / sum(subject_contig_lengths[i]) * 10000, subject_misass[i],
+                      len(subject_contig_lengths[i]), sum(subject_contig_lengths[i]), length_dict[i])
     svg.writesvg(sys.argv[4])
 
 

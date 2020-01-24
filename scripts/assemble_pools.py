@@ -39,10 +39,26 @@ with open(snakemake.input.list) as f:
                 subprocess.Popen("unicycler -t %d -1 %s -2 %s -l %s -o data/final_assemblies/%s_unicyc" % (
                     snakemake.threads, short_reads_1, short_reads_2, long_reads, mb_bin), shell=True).wait()
 
+unbinned_set = set()
+if os.path.exists(snakemake.input.metabat_done[:-4] + "binned_contigs.unbinned"):
+    with open(snakemake.input.metabat_done[:-4] + "binned_contigs.unbinned") as f:
+        for line in f:
+            unbinned_set.add(line.rstrip())
 
 
 with open(snakemake.output.fasta, 'w') as o:
     count = 0
+    getseq = False
+    with open(snakemake.input.fasta) as f:
+        for line in f:
+            if line.startswith('>') and line.split()[0][1:] in unbinned_set:
+                getseq = True
+                o.write('>unbinned_' + str(count) + '\n')
+                count += 1
+            elif line.startswith('>'):
+                getseq = False
+            elif getseq:
+                o.write(line)
     for i in out_assemblies:
         if not os.path.exists(i):
             with open(i[:-14] + 'unicycler.log') as f:

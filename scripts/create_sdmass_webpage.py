@@ -43,6 +43,18 @@ def write_css(outfile):
 *::after {
   box-sizing: border-box; }
 
+
+
+.toggle-vis {
+  color: green !important;
+  cursor: pointer;
+}
+.greened {
+  color: red !important;
+}
+
+
+
 html {
   font-family: sans-serif;
   line-height: 1.15;
@@ -6357,8 +6369,8 @@ a.text-dark:hover, a.text-dark:focus {
   .table-bordered td {
     border: 1px solid #ddd !important; } }
 /********************************************************************
-	ZYPOP - HTTPS://ZYPOPWEBTEMPLATES.COM
-	FREE WEB TEMPLATES
+    ZYPOP - HTTPS://ZYPOPWEBTEMPLATES.COM
+    FREE WEB TEMPLATES
 ********************************************************************/
 /**
 This file contains the core CSS for this template, built on the Bootstrap framework
@@ -6713,8 +6725,8 @@ def create_header(bin_list, directory, active, long_read_qc_html, short_read_qc_
 
     main_header = '''<!doctype html>
 <html lang="en">
-	<head>
-        <title>SDMass</title>
+    <head>
+        <title>slamM</title>
 
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
@@ -6729,18 +6741,6 @@ def create_header(bin_list, directory, active, long_read_qc_html, short_read_qc_
         <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/pdfmake.min.js"></script>
         <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/vfs_fonts.js"></script>
         <script type="text/javascript" src="https://cdn.datatables.net/v/bs4/jq-3.3.1/jszip-2.5.0/dt-1.10.18/b-1.5.6/b-html5-1.5.6/cr-1.5.0/datatables.min.js"></script>
-<script>
-$(document).ready(function() {
-	$('#thetable').DataTable( {
-        dom: 'frtiplB;',
-        "scrollX": true,
-        buttons: [
-            'copy', 'csv', 'excel', 'pdf'
-        ]
-    });
-} );
-
-</script>
     </head>
 
 
@@ -6918,13 +6918,49 @@ def add_footer():
     </body>
 </html>''')
 
-def create_table(headers, list_of_vals, text_table=None):
+def create_table(headers, list_of_vals, hide_by_default=set(), text_table=None):
     if not text_table is None:
         with open(text_table, 'w') as o:
             o.write('\t'.join(headers) + '\n')
             for i in list_of_vals:
                 o.write('\t'.join(map(str, i)) + '\n')
-    out_string = '''                                <table class="table" id="thetable" style="width:100%">
+    out_string = '''<script>
+    $(document).ready(function() {
+    var table = $('#thetable').DataTable( {
+        dom: 'frtiplB;',
+        "scrollX": true,
+        buttons: [
+            'copy', 'csv', 'excel', 'pdf'
+        ]
+    });
+ 
+    $('a.toggle-vis').on( 'click', function (e) {
+        e.preventDefault();
+        $(this).toggleClass('greened');
+        // Get the column API object
+        var column = table.column( $(this).attr('data-column') );
+ 
+        // Toggle the visibility
+        column.visible( ! column.visible() );
+    } );
+'''
+    for num, head in enumerate(headers):
+        if head in hide_by_default:
+            out_string += '        table.column(%d).visible( false );\n' % (num)
+    out_string += '''
+} );
+    </script>
+    <div>
+        Toggle column:
+'''
+    for num, head in enumerate(headers):
+        if head in hide_by_default:
+            out_string += '<a class="toggle-vis greened" data-column="%d">%s</a> - ' % (num, head)
+        else:
+            out_string += '<a class="toggle-vis" data-column="%d">%s</a> - ' % (num, head)
+    out_string = out_string[:-3]
+    out_string += '\n        </div>'
+    out_string += '''                                <table class="table" id="thetable" style="width:100%">
                                     <thead>
                                         <tr>
 '''
@@ -7652,7 +7688,8 @@ def create_main_page(outfile, fasta, checkm_file, contig_folder, long_bam, short
             busco_kingdom, busco_best, busco_complete = 'n/a', 'n/a', 0
         bin_headers = ['Bin', 'Max. contig (bp)', '# of contigs', 'bases assembled', 'N50', 'average read depth (long)',
                               'average read depth (short)', 'average gene size', 'Gene size Std. dev.', '# of genes', 'coding density (%)', 'marker lineage',
-                              'completeness', 'Contamination', 'Heterozygosity', 'Closest ref. (% ANI)', 'Classification', 'Bacterial busco', 'Eukaryotic busco', 'Best kingdom', 'Kingdom busoc', 'kingdom completeness']
+                              'completeness', 'Contamination', 'Heterozygosity', 'Closest ref. (% ANI)', 'Classification', 'Bacterial busco', 'Eukaryotic busco', 'Best kingdom', 'Kingdom busco', 'kingdom completeness']
+        hidden_headers = ['N50', 'average gene size', 'Gene size Std. dev.', '# of genes', 'coding density (%)', 'marker lineage', 'Classification', 'Bacterial busco', 'Eukaryotic busco', 'Best kingdom']
         bin_details = [bin, '{:,}'.format(max_contig), '{:,}'.format(len(ctgs)), '{:,}'.format(bases_assembled), '{:,}'.format(n50),
                         '{:,.2f}'.format(bases_sequenced_long/bases_assembled),'{:,.2f}'.format(bases_sequenced_short/bases_assembled),
                        '{:,.2f}'.format(gene_average), '{:,.2f}'.format(gene_std), '{:,}'.format(gene_no), '{:,.2f}'.format(coding_percent)
@@ -7664,26 +7701,13 @@ def create_main_page(outfile, fasta, checkm_file, contig_folder, long_bam, short
         o.write(create_header(bin_list, '', 'index.html', long_qc_html, short_qc_html))
         o.write(add_title("Overview of assembly", "assembled into " + str(len(bin_list)) + " bins."))
         o.write(add_main("Overview of bins", "details for each bin"))
-        o.write(create_table(bin_headers, outlist, 'data/bin_summary.tsv'))
+        o.write(create_table(bin_headers, outlist, hidden_headers, 'data/bin_summary.tsv'))
         o.write(end_main())
         o.write(add_footer())
 
 
 
 
-
-
-
-    # write page # of bins
-    # for each bin
-         # get max contig, bases assembled, N50,
-         # get average read depth (long)
-         # get average read depth (short)
-         # get marker lineage, completeness, Contamination, Heterozygosity
-         # get best mash hit
-
-         # add entry to table (Bin 	Max. contig 	bases assembled 	N50 	average read depth (long) 	average read depth (short) 	marker lineage 	complete 	Contamination 	Heterozygosity 	Best mash hit)
-         # generate bin page
 
 
 

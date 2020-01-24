@@ -2,8 +2,6 @@ configfile: "config.yaml"
 
 workdir: config["workdir"]
 
-
-
 ruleorder: skip_long_assembly > get_reads_list_ref > copy_reads
 ruleorder: filter_illumina_ref > filter_illumina_ref_interleaved > ill_copy_reads > ill_copy_reads_interleaved
 ruleorder: fastqc > fastqc_long
@@ -13,6 +11,46 @@ ruleorder: skip_long_assembly > get_high_cov_contigs
 ruleorder: skip_long_assembly > filter_illumina_assembly
 
 # Filter reads against a reference (i.e. for removing host contamination of the metagenome)
+
+
+onsuccess:
+    print("Workflow finished, no error")
+
+onerror:
+    print("An error occurred")
+    shell("mail -s \"an error occurred\" %s < {log}" % config["email"])
+
+onstart:
+    long_reads = config["long_reads"]
+    short_reads_1 = config["short_reads_1"]
+    short_reads_2 = config["short_reads_2"]
+    unassembled_long = config["unassembled_long"]
+    reference_filter = config["reference_filter"]
+    meta_genome_size = config["meta_genome_size"]
+    checkm_folder = config["checkm_folder"]
+    gtdbtk_folder = config["gtdbtk_folder"]
+    busco_folder = config["busco_folder"]
+    profile_read_list = config["profile_read_list"]
+    import os
+    if long_reads == "none" and short_reads_1 == "none":
+        sys.exit("Need at least one of long_reads, short_reads_1")
+    if long_reads != "none" and not os.path.exists(long_reads):
+        sys.exit("long_reads does not point to a file")
+    if short_reads_1 != "none" and not os.path.exists(short_reads_1):
+        sys.exit("short_reads_1 does not point to a file")
+    if short_reads_2 != "none" and not os.path.exists(short_reads_2):
+        sys.exit("short_reads_2 does not point to a file")
+    if unassembled_long != "none" and not os.path.exists(unassembled_long):
+        sys.exit("unassembled_long does not point to a file")
+    if checkm_folder != "none" and not os.path.exists(checkm_folder):
+        sys.sterr.write("checkm_folder does not point to a folder")
+    if gtdbtk_folder != "none" and not os.path.exists(gtdbtk_folder):
+        sys.sterr.write("gtdbtk_folder does not point to a folder")
+    if busco_folder != "none" and not os.path.exists(busco_folder):
+        sys.sterr.write("busco_folder does not point to a folder")
+
+
+
 rule map_reads_ref:
     input:
         fastq = config["long_reads"],
@@ -221,12 +259,14 @@ rule get_high_cov_contigs:
     input:
         info = "data/flye/assembly_info.txt",
         fasta = "data/assembly.pol.fin.fasta",
+        graph = "data/flye/assembly_graph.gfa",
         paf = "data/racon_polishing/alignment.racon_ill.0.paf"
     output:
         fasta = "data/flye_high_cov.fasta"
     params:
         min_cov_long = 20.0,
-        min_cov_short = 20.0
+        min_cov_short = 10.0,
+        short_contig_size = 200000
     run:
         ill_cov_dict = {}
         with open(input.paf) as paf:
@@ -247,6 +287,18 @@ rule get_high_cov_contigs:
                     covme = 0
                 if float(line.split()[2]) >= params.min_cov_long or not line.split()[0] in ill_cov_dict or ill_cov_dict[line.split()[0]] <= params.min_cov_short:
                     high_cov_set.add(line.split()[0])
+        with open(input.graph) as f:
+            short_contigs = set()
+            filtered_contigs = set()
+            for line in f:
+                if line.startswith("S") and len(line.split()[2]) < params.short_contig_size:
+                    short_contigs.add(line.split()[1])
+                elif line.startswith("L"):
+                    if line.split()[1] in short_contigs and line.split()[3] in short_contigs and not line.split()[1] == line.split()[3]:
+                        filtered_contigs.add(line.split()[1])
+                        filtered_contigs.add(line.split()[2])
+        for i in filtered_contigs:
+            high_cov_set.remove(i.replace("edge", "contig"))
         with open(input.fasta) as f, open(output.fasta, 'w') as o:
             write_line = False
             for line in f:
@@ -289,27 +341,38 @@ rule skip_long_assembly:
     shell:
         "ln {input.fastq} {output.fastq} && touch {output.fasta} && ln {input.unassembled_long} {output.long_reads}"
 
+rule short_only:
+    input:
+        fastq = "data/short_reads.fastq.gz"
+    output:
+        fastq = "data/short_reads.filt.fastq.gz",
+        fasta = "data/flye_high_cov.fasta",
+        long_reads = "data/long_reads.fastq.gz"
+    shell:
+        "ln {input.fastq} {output.fastq} && touch {output.fasta} && touch {output.long_reads}"
+
 # assemble filtered illumina reads with megahit
 rule megahit_assembly:
     input:
-        fastq = "data/short_reads.filt.fastq.gz"
+        fastq = "data/short_reads.filt.fastq.gz",
+        long_reads = "data/long_reads.fastq.gz"
     output:
-        fasta = "data/mega_assembly.fasta"
+        fasta = "data/spades_assembly.fasta"
     threads:
          config["max_threads"]
     conda:
-        "envs/megahit.yaml"
+        "envs/spades.yaml"
     shell:
         "minimumsize=500000 && actualsize=$(stat -c%s data/short_reads.filt.fastq.gz) && " \
         "if [ $actualsize -ge $minimumsize ]; then " \
-         "megahit -t {threads} --12 {input.fastq} -o data/mega_assembly && ln data/mega_assembly/final.contigs.fa data/mega_assembly.fasta; " \
+         "spades --meta --nanopore {input.long_reads} --12 {input.fastq} -o data/spades_assembly -t {threads} -k 21,33,55,81,99,127 && ln data/spades_assembly/scaffolds.fasta data/spades_assembly.fasta; " \
         "else touch {output.fasta}; fi"
 
 
 rule metabat_binning_short:
     input:
          fastq = "data/short_reads.filt.fastq.gz",
-         fasta = "data/mega_assembly.fasta"
+         fasta = "data/spades_assembly.fasta"
     output:
          metabat_done = "data/metabat_bins/done",
          bam = "data/short_vs_mega.bam"
@@ -320,13 +383,13 @@ rule metabat_binning_short:
          "samtools sort -o data/short_vs_mega.bam - && samtools index {output.bam} && "\
          "jgi_summarize_bam_contig_depths --outputDepth data/megahit.cov data/short_vs_mega.bam && " \
          "mkdir -p data/metabat_bins && " \
-         "metabat --seed 89 -m 1500 -l -i {input.fasta} -a data/megahit.cov -o data/metabat_bins/binned_contigs && " \
+         "metabat --seed 89 --unbinned -m 1500 -l -i {input.fasta} -a data/megahit.cov -o data/metabat_bins/binned_contigs && " \
          "touch data/metabat_bins/done"
 
 rule map_long_mega:
     input:
         fastq = "data/long_reads.fastq.gz",
-        fasta = "data/mega_assembly.fasta"
+        fasta = "data/spades_assembly.fasta"
     output:
         bam = "data/long_vs_mega.bam"
     threads:
@@ -373,7 +436,9 @@ rule get_read_pools:
 rule assemble_pools:
     input:
         fastq = "data/binned_reads/done",
-        list = "data/list_of_lists.txt"
+        list = "data/list_of_lists.txt",
+        fasta = "data/spades_assembly.fasta",
+        metabat_done = "data/metabat_bins/done"
     threads:
         config["max_threads"]
     output:
