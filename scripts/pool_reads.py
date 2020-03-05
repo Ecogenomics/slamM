@@ -13,7 +13,7 @@ outreads500 = {}
 outbases500 = {}
 
 for bins in os.listdir(snakemake.input.metabat_done[:-4]):
-    if not bins.startswith('binned_contigs') or bins == "binned_contigs.unbinned":
+    if not bins.startswith('binned_contigs') or bins == "binned_contigs.unbinned" or bins == "binned_contigs.lowDepth" or bins == "binned_contigs.tooShort":
         continue
     bin = bins.split('.')[1]
     if int(bin) > maxbin:

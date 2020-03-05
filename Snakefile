@@ -2,14 +2,15 @@ configfile: "config.yaml"
 
 workdir: config["workdir"]
 
-ruleorder: skip_long_assembly > get_reads_list_ref > copy_reads
+ruleorder: skip_long_assembly > get_reads_list_ref > copy_reads > short_only
+ruleorder: filter_illumina_assembly > short_only
 ruleorder: filter_illumina_ref > filter_illumina_ref_interleaved > ill_copy_reads > ill_copy_reads_interleaved
 ruleorder: fastqc > fastqc_long
 ruleorder: polish_isolate_racon_ill > skip_illumina_polish
 ruleorder: combine_assemblies > combine_long_only
-ruleorder: skip_long_assembly > get_high_cov_contigs
+ruleorder: instrain > instrain_long
+ruleorder: skip_long_assembly > get_high_cov_contigs > short_only
 ruleorder: skip_long_assembly > filter_illumina_assembly
-
 # Filter reads against a reference (i.e. for removing host contamination of the metagenome)
 
 
@@ -43,11 +44,11 @@ onstart:
     if unassembled_long != "none" and not os.path.exists(unassembled_long):
         sys.exit("unassembled_long does not point to a file")
     if checkm_folder != "none" and not os.path.exists(checkm_folder):
-        sys.sterr.write("checkm_folder does not point to a folder")
+        sys.stderr.write("checkm_folder does not point to a folder\n")
     if gtdbtk_folder != "none" and not os.path.exists(gtdbtk_folder):
-        sys.sterr.write("gtdbtk_folder does not point to a folder")
+        sys.stderr.write("gtdbtk_folder does not point to a folder\n")
     if busco_folder != "none" and not os.path.exists(busco_folder):
-        sys.sterr.write("busco_folder does not point to a folder")
+        sys.stderr.write("busco_folder does not point to a folder\n")
 
 
 
@@ -111,6 +112,7 @@ rule flye_assembly:
         fastq = "data/long_reads.fastq.gz"
     output:
         fasta = "data/flye/assembly.fasta",
+        graph = "data/flye/assembly_graph.gfa",
         info = "data/flye/assembly_info.txt"
     params:
         genome_size = config["meta_genome_size"]
@@ -227,12 +229,14 @@ rule polish_meta_pilon:
         bam = "data/pilon.sort.bam"
     threads:
         config["max_threads"]
+    params:
+        pilon_memory = config["pilon_memory"]
     conda:
         "envs/pilon.yaml"
     shell:
         "minimap2 -ax sr -t {threads} {input.fasta} {input.reads} | samtools view -b | " \
         "samtools sort -o {output.bam} - && samtools index {output.bam} && " \
-        "pilon -Xmx128000m --genome {input.fasta} --frags data/pilon.sort.bam --threads {threads} --output data/assembly.pol.pil --fix bases"
+        "pilon -Xmx{params.pilon_memory}000m --genome {input.fasta} --frags data/pilon.sort.bam --threads {threads} --output data/assembly.pol.pil --fix bases"
 
 
 rule polish_meta_racon_ill:
@@ -266,7 +270,8 @@ rule get_high_cov_contigs:
     params:
         min_cov_long = 20.0,
         min_cov_short = 10.0,
-        short_contig_size = 200000
+        short_contig_size = 200000,
+        long_contig_size = 500000
     run:
         ill_cov_dict = {}
         with open(input.paf) as paf:
@@ -280,25 +285,43 @@ rule get_high_cov_contigs:
         with open(input.info) as f:
             f.readline()
             high_cov_set = set()
+            short_edges = {}
             for line in f:
-                if line.split()[0] in ill_cov_dict:
-                    covme = ill_cov_dict[line.split()[0]]
-                else:
-                    covme = 0
+                if int(line.split()[1]) > params.long_contig_size:
+                    high_cov_set.add(line.split()[0])
+                elif int(line.split()[1]) < params.short_contig_size:
+                    se1 = line.split()[6].split(',')[0]
+                    if se1.startswith('-'):
+                        se1 = ("edge_" + se1[1:], True)
+                    else:
+                        se1 = ("edge_" + se1, False)
+                    se2 = line.split()[6].split(',')[-1]
+                    if se2.startswith('-'):
+                        se2 = ("edge_" + se2[1:], False)
+                    else:
+                        se2 = ("edge_" + se2, True)
+                    if not se1 in short_edges:
+                        short_edges[se1] = []
+                    short_edges[se1].append(line.split()[0])
+                    if not se2 in short_edges:
+                        short_edges[se2] = []
+                    short_edges[se2].append(line.split()[0])
                 if float(line.split()[2]) >= params.min_cov_long or not line.split()[0] in ill_cov_dict or ill_cov_dict[line.split()[0]] <= params.min_cov_short:
                     high_cov_set.add(line.split()[0])
         with open(input.graph) as f:
-            short_contigs = set()
             filtered_contigs = set()
             for line in f:
-                if line.startswith("S") and len(line.split()[2]) < params.short_contig_size:
-                    short_contigs.add(line.split()[1])
-                elif line.startswith("L"):
-                    if line.split()[1] in short_contigs and line.split()[3] in short_contigs and not line.split()[1] == line.split()[3]:
-                        filtered_contigs.add(line.split()[1])
-                        filtered_contigs.add(line.split()[2])
+                if line.startswith("L"):
+                    if (line.split()[1], line.split()[2] == '+') in short_edges and (line.split()[3], line.split()[4] == '-') in short_edges and not line.split()[1] == line.split()[3]:
+                        for i in short_edges[(line.split()[1], line.split()[2] == '+')]:
+                            filtered_contigs.add(i)
+                        for i in short_edges[(line.split()[3], line.split()[4] == '-')]:
+                            filtered_contigs.add(i)
         for i in filtered_contigs:
-            high_cov_set.remove(i.replace("edge", "contig"))
+            try:
+                high_cov_set.remove(i)
+            except KeyError:
+                pass
         with open(input.fasta) as f, open(output.fasta, 'w') as o:
             write_line = False
             for line in f:
@@ -351,8 +374,8 @@ rule short_only:
     shell:
         "ln {input.fastq} {output.fastq} && touch {output.fasta} && touch {output.long_reads}"
 
-# assemble filtered illumina reads with megahit
-rule megahit_assembly:
+# assemble filtered illumina reads with spades
+rule spades_assembly:
     input:
         fastq = "data/short_reads.filt.fastq.gz",
         long_reads = "data/long_reads.fastq.gz"
@@ -365,7 +388,7 @@ rule megahit_assembly:
     shell:
         "minimumsize=500000 && actualsize=$(stat -c%s data/short_reads.filt.fastq.gz) && " \
         "if [ $actualsize -ge $minimumsize ]; then " \
-         "spades --meta --nanopore {input.long_reads} --12 {input.fastq} -o data/spades_assembly -t {threads} -k 21,33,55,81,99,127 && ln data/spades_assembly/scaffolds.fasta data/spades_assembly.fasta; " \
+        "spades.py --meta --nanopore {input.long_reads} --12 {input.fastq} -o data/spades_assembly -t {threads} -k 21,33,55,81,99,127 && ln data/spades_assembly/scaffolds.fasta data/spades_assembly.fasta; " \
         "else touch {output.fasta}; fi"
 
 
@@ -603,7 +626,6 @@ rule checkm:
     threads:
         config["max_threads"]
     shell:
-        'var="$(which checkm)" && sed -i "s|/srv/whitlam/bio/db/checkm_data/1.0.0|{params.checkm_folder}|g" ${{var:0:-11}}/lib/python2.7/site-packages/checkm/DATA_CONFIG && ' \
         'checkm lineage_wf -t {threads} -x fa data/das_tool_bins/das_tool_DASTool_bins data/checkm > data/checkm.out'
 
 
@@ -690,6 +712,32 @@ rule busco:
         "fi; done && " \
         "cd ../../ && touch data/busco/done"
 
+rule instrain_long:
+    input:
+        bam = "data/final_long.sort.bam",
+        fasta = "data/final_contigs.fasta"
+    output:
+        profile = "data/instrain/output/instrain_scaffold_info.tsv"
+    threads:
+        config["max_threads"]
+    conda:
+        "envs/instrain.yaml"
+    shell:
+        "inStrain profile -o data/instrain {input.bam} {input.fasta}"
+
+
+rule instrain:
+    input:
+        bam = "data/final_short.sort.bam",
+        fasta = "data/final_contigs.fasta"
+    output:
+        profile = "data/instrain/output/instrain_scaffold_info.tsv"
+    threads:
+        config["max_threads"]
+    conda:
+        "envs/instrain.yaml"
+    shell:
+        "inStrain profile {input.bam} {input.fasta} -o data/instrain"
 
 rule create_webpage:
     input:
@@ -700,7 +748,8 @@ rule create_webpage:
         long_reads_qc_html = "www/nanoplot/longReadsNanoPlot-report.html",
         short_reads_qc_html = "www/short_reads_fastqc.html",
         genes_gff = "data/genes.gff",
-        gtdbtk_done = "data/gtdbtk/done"
+        gtdbtk_done = "data/gtdbtk/done",
+        strain_profile = "data/instrain/output/instrain_scaffold_info.tsv"
     output:
         "www/index.html"
     threads:

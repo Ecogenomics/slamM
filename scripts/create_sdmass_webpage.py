@@ -7581,7 +7581,7 @@ def get_busco(busco_folder):
 
 
 
-def create_main_page(outfile, fasta, checkm_file, contig_folder, long_bam, short_bam, gff_file, long_qc_html, short_qc_html, gtdbtk_dir, busco_dir, min_contig_size=100000):
+def create_main_page(outfile, fasta, checkm_file, contig_folder, long_bam, short_bam, gff_file, long_qc_html, short_qc_html, gtdbtk_dir, busco_dir, strain_profile, min_contig_size=100000):
     with open(fasta) as f:
         len_dict = {}
         for line in f:
@@ -7601,6 +7601,11 @@ def create_main_page(outfile, fasta, checkm_file, contig_folder, long_bam, short
     outlist = []
     bin_list = []
     gene_size_dict = get_gene_sizes(gff_file)
+    instrain_dict = {}
+    with open(instrain_file) as f:
+        f.readline()
+        for line in f:
+            instrain_dict[line.split()[0]] = float(line.split('\t')[9])
     for i in os.listdir(contig_folder):
         if not i.endswith('.fa'):
             continue
@@ -7624,11 +7629,13 @@ def create_main_page(outfile, fasta, checkm_file, contig_folder, long_bam, short
                     ctg_name = line.split()[0][1:]
                     ctgs.append(ctg_name)
         length_list = []
+        microd = 0
         for j in ctgs:
             length_list.append(len_dict[j])
+            microd += len_dict[j] * instrain_dict[j]
         max_contig = max(length_list)
         bases_assembled = sum(length_list)
-
+        microd = microd / bases_assembled
         length_list.sort(reverse=True)
         y = 0
         for j in length_list:
@@ -7659,7 +7666,7 @@ def create_main_page(outfile, fasta, checkm_file, contig_folder, long_bam, short
             # if len_dict[ctg] >= min_contig_size:
             #     create_contig_page(bin, ctg, cov_forward, cov_reverse, trimmed_starts, trimmed_ends, starts_in,
             #                     ends_ind, cov_forward_ill, cov_reverse_ill, x, 'ctg/' + ctg + '.html')
-            ctg_details.append((ctg, len_dict[ctg], coverage_long, coverage_short))
+            ctg_details.append((ctg, len_dict[ctg], coverage_long, coverage_short, instrain_dict[ctg]))
         gene_average = numpy.average(gene_sizes)
         gene_std = numpy.std(gene_sizes)
         gene_no = len(gene_sizes)
@@ -7688,12 +7695,12 @@ def create_main_page(outfile, fasta, checkm_file, contig_folder, long_bam, short
             busco_kingdom, busco_best, busco_complete = 'n/a', 'n/a', 0
         bin_headers = ['Bin', 'Max. contig (bp)', '# of contigs', 'bases assembled', 'N50', 'average read depth (long)',
                               'average read depth (short)', 'average gene size', 'Gene size Std. dev.', '# of genes', 'coding density (%)', 'marker lineage',
-                              'completeness', 'Contamination', 'Heterozygosity', 'Closest ref. (% ANI)', 'Classification', 'Bacterial busco', 'Eukaryotic busco', 'Best kingdom', 'Kingdom busco', 'kingdom completeness']
+                              'completeness', 'Contamination', 'Heterozygosity', 'Microdiversity', 'Closest ref. (% ANI)', 'Classification', 'Bacterial busco', 'Eukaryotic busco', 'Best kingdom', 'Kingdom busco', 'kingdom completeness']
         hidden_headers = ['N50', 'average gene size', 'Gene size Std. dev.', '# of genes', 'coding density (%)', 'marker lineage', 'Classification', 'Bacterial busco', 'Eukaryotic busco', 'Best kingdom']
         bin_details = [bin, '{:,}'.format(max_contig), '{:,}'.format(len(ctgs)), '{:,}'.format(bases_assembled), '{:,}'.format(n50),
                         '{:,.2f}'.format(bases_sequenced_long/bases_assembled),'{:,.2f}'.format(bases_sequenced_short/bases_assembled),
                        '{:,.2f}'.format(gene_average), '{:,.2f}'.format(gene_std), '{:,}'.format(gene_no), '{:,.2f}'.format(coding_percent)
-                       ] + checkm_dict[bin] + [gtdbtk_info1, gtdbtk_info2, bac_busco, euk_busco, busco_kingdom, busco_best, '{:,.2f}'.format(busco_complete)]
+                       ] + checkm_dict[bin] + [microd] + [gtdbtk_info1, gtdbtk_info2, bac_busco, euk_busco, busco_kingdom, busco_best, '{:,.2f}'.format(busco_complete)]
         create_bin_page(bin_headers, bin_details, ctg_details, 'bin/' + bin + '.html', bin_list, long_qc_html, short_qc_html)
         outlist.append(bin_details)
     get_gtdbtk(gtdbtk_dir, cov_dict)
@@ -7724,7 +7731,7 @@ def create_bin_page(headers, bin_details, ctg_details, outfile, bin_list, long_q
         for i in ctg_details:
             ctgs.append(i[0])
         o.write(add_main("Bin details:", main_string, ctgs))
-        o.write(create_table(["contig", "length", "coverage long", "coverage short"], ctg_details))
+        o.write(create_table(["contig", "length", "coverage long", "coverage short", "microdiversity"], ctg_details))
         o.write(end_main())
         o.write(add_footer())
 
@@ -7743,6 +7750,7 @@ short_html = snakemake.input.short_reads_qc_html[4:]
 gff_file = snakemake.input.genes_gff
 gtdbtk_dir = snakemake.input.gtdbtk_done[:-4]
 busco_dir = snakemake.input.busco_done[:-4]
+strain_profile = snakemake.input.strain_profile
 try:
     os.makedirs('www/bin')
 except FileExistsError:
@@ -7764,4 +7772,4 @@ else:
     short_bam = None
 
 
-create_main_page("www/index.html", fasta, checkm_file, contig_folder, long_bam, short_bam, gff_file, long_html, short_html, gtdbtk_dir, busco_dir)
+create_main_page("www/index.html", fasta, checkm_file, contig_folder, long_bam, short_bam, gff_file, long_html, short_html, gtdbtk_dir, busco_dir, strain_profile)

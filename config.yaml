@@ -32,3 +32,5 @@ unassembled_long:
     none
 profile_read_list:
     none
+pilon_memory:
+    128
