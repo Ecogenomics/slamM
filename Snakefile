@@ -733,7 +733,7 @@ rule create_webpage:
     conda:
         "envs/webpage.yaml"
     script:
-        "scripts/create_sdmass_webpage.py"
+        "scripts/create_slamm_webpage.py"
 
 
 #############################
