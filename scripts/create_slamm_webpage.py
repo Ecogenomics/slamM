@@ -7605,8 +7605,8 @@ def create_main_page(outfile, fasta, checkm_file, contig_folder, long_bam, short
     with open(instrain_file) as f:
         f.readline()
         for line in f:
-            print(line.split('\t')[9])
-            instrain_dict[line.split()[0]] = float(line.split('\t')[9])
+            if line.split('\t')[9] != '':
+                instrain_dict[line.split()[0]] = float(line.split('\t')[9])
     for i in os.listdir(contig_folder):
         if not i.endswith('.fa'):
             continue
@@ -7631,12 +7631,18 @@ def create_main_page(outfile, fasta, checkm_file, contig_folder, long_bam, short
                     ctgs.append(ctg_name)
         length_list = []
         microd = 0
+        lenmicrod = 0
         for j in ctgs:
             length_list.append(len_dict[j])
-            microd += len_dict[j] * instrain_dict[j]
+            if j in instrain_dict:
+                microd += len_dict[j] * instrain_dict[j]
+                lenmicrod += len_dict[j]
         max_contig = max(length_list)
         bases_assembled = sum(length_list)
-        microd = microd / bases_assembled
+        if lenmicrod != 0:
+            microd = str(microd / lenmicrod)
+        else:
+            microd = 'n/a'
         length_list.sort(reverse=True)
         y = 0
         for j in length_list:
