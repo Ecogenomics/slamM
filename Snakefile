@@ -28,7 +28,6 @@ onstart:
     unassembled_long = config["unassembled_long"]
     reference_filter = config["reference_filter"]
     meta_genome_size = config["meta_genome_size"]
-    checkm_folder = config["checkm_folder"]
     gtdbtk_folder = config["gtdbtk_folder"]
     busco_folder = config["busco_folder"]
     profile_read_list = config["profile_read_list"]
@@ -43,8 +42,6 @@ onstart:
         sys.exit("short_reads_2 does not point to a file")
     if unassembled_long != "none" and not os.path.exists(unassembled_long):
         sys.exit("unassembled_long does not point to a file")
-    if checkm_folder != "none" and not os.path.exists(checkm_folder):
-        sys.stderr.write("checkm_folder does not point to a folder\n")
     if gtdbtk_folder != "none" and not os.path.exists(gtdbtk_folder):
         sys.stderr.write("gtdbtk_folder does not point to a folder\n")
     if busco_folder != "none" and not os.path.exists(busco_folder):
@@ -602,8 +599,6 @@ rule checkm:
         "data/checkm.out"
     conda:
         "envs/checkm.yaml"
-    params:
-        checkm_folder = config["checkm_folder"]
     threads:
         config["max_threads"]
     shell:
