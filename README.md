@@ -1,4 +1,4 @@
-# SDMAss
+# slamM
 
 ### Step down metagenome assembler
 
@@ -30,7 +30,7 @@ $ conda install -c bioconda -c conda-forge snakemake
 
 ```
 $ cd <where_you_want_it_installed>
-$ git clone https://github.com/Ecogenomics/SDMass.git
+$ git clone https://github.com/Ecogenomics/slamM.git
 ```
 
 
@@ -53,21 +53,3 @@ Alternatively you can edit config.yaml to point to reads and directory and then 
 ```
 $ snakemake assemble_pools --cores 12 --use-conda 
 ```
-
-
-
-### KNOWN ISSUES
-
-Unicycler somtimes freezes 
-
-if you see output hang at
-
-```
-Aligning reads (2019-04-09 07:20:24)
-
-32,766 / 32,767 (100.0%)
-```
-
-n.b. 32,767 will be the number of reads in your particular run. the number preceding (32,766 in this case) will always be one less than this number.
-
-Just exit out and then rerun (Don't worry, it'll pick up where it left off.)
