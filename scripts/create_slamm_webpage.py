@@ -7637,6 +7637,8 @@ def create_main_page(outfile, fasta, checkm_file, contig_folder, long_bam, short
             if j in instrain_dict:
                 microd += len_dict[j] * instrain_dict[j]
                 lenmicrod += len_dict[j]
+            else:
+                instrain_dict[j] = 'n/a'
         max_contig = max(length_list)
         bases_assembled = sum(length_list)
         if lenmicrod != 0:
