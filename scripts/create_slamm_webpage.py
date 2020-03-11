@@ -7605,6 +7605,7 @@ def create_main_page(outfile, fasta, checkm_file, contig_folder, long_bam, short
     with open(instrain_file) as f:
         f.readline()
         for line in f:
+            print(line.split('\t')[9])
             instrain_dict[line.split()[0]] = float(line.split('\t')[9])
     for i in os.listdir(contig_folder):
         if not i.endswith('.fa'):
