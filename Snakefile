@@ -142,25 +142,6 @@ rule polish_metagenome_racon:
     script:
         "scripts/racon_polish.py"
 
-#
-# rule polish_metagenome_medaka:
-#     input:
-#         reads = config["long_reads"],
-#         contigs = "data/assembly.pol.rac.fasta"
-#     conda:
-#         "envs/medaka.yaml"
-#     threads:
-#         config["max_threads"]
-#     params:
-#         model = config["guppy_model"]
-#     output:
-#         fasta = "data/assembly.pol.med.fasta"
-#     shell:
-#         "medaka_consensus -i {input.reads} -d {input.contigs} -o data/medaka/ -t {threads} -m {params.model} && " \
-#         "cp data/medaka/consensus.fasta {output.fasta}"
-
-
-
 ### Steps if illumina data exists
 rule filter_illumina_ref:
     input:
@@ -914,14 +895,4 @@ rule circlator:
         "envs/circlator.yaml"
     shell:
         "circlator all {input.fasta} {input.reads} isolate/circlator && cp isolate/circlator/06.fixstart.fasta {output.fasta}"
-
-# rule resquiggle:
-#     input:
-#         fasta = "isolate/completed_assembly.fasta",
-#         fast5_folder = config["fasta_5_folder"]
-#     output:
-#
-#     threads:
-#
-#     shell:
 
