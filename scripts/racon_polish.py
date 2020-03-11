@@ -3,11 +3,10 @@ import os
 import subprocess
 import random
 import shutil
-
+import gzip
 
 out = "data/racon_polishing"
 reads = snakemake.input.fastq
-threads = 24
 max_cov = snakemake.params.maxcov
 
 if not os.path.exists(reads):
@@ -21,9 +20,25 @@ except FileExistsError:
 random.seed(89)
 reference = snakemake.input.fasta
 
+if snakemake.params.illumina:
+    with gzip.open(reads, 'rt') as f:
+        line1 = f.readline()
+        f.readline()
+        f.readline()
+        f.readline()
+        line5 = f.readline()
+    if line1.split()[0] == line5.split()[0]:
+        subprocess.Popen('zcat ' + reads + ' | awk \'{{if (NR % 8 == 1) {{print $1 "/1"}} else if (NR % 8 == 5) {{print $1 "/2"}} ' \
+                         'else if (NR % 4 == 3){{print "+"}} else {{print $0}}}}\' | gzip > data/short_reads_racon.fastq.gz', shell=True).wait()
+        reads = 'data/short_reads_racon.fastq.gz'
+
+
 for rounds in range(snakemake.params.rounds):
-    paf = os.path.join(out, 'alignment.%s.%d.paf' % (snakemake.params.prefix, rounds)
-    subprocess.Popen("minimap2 -t %d -x map-ont %s %s > %s" % (snakemake.threads, reference, reads, paf), shell=True).wait()
+    paf = os.path.join(out, 'alignment.%s.%d.paf') % (snakemake.params.prefix, rounds)
+    if snakemake.params.illumina:
+        subprocess.Popen("minimap2 -t %d -x sr %s %s > %s" % (snakemake.threads, reference, reads, paf), shell=True).wait()
+    else:
+        subprocess.Popen("minimap2 -t %d -x map-ont %s %s > %s" % (snakemake.threads, reference, reads, paf), shell=True).wait()
     cov_dict = {}
     with open(paf) as f:
         for line in f:
@@ -43,7 +58,7 @@ for rounds in range(snakemake.params.rounds):
             low_cov.add(i)
 
     no_cov = set()
-    with open(reference) as ref_file, open(os.path.join(out, "filtered.%d.fa" % rounds), 'w') as o:
+    with open(reference) as ref_file, open(os.path.join(out, "filtered.%s.%d.fa" % (snakemake.params.prefix, rounds)), 'w') as o:
         for line in ref_file:
             if line.startswith('>'):
                 name = line.split()[0][1:]
@@ -57,29 +72,43 @@ for rounds in range(snakemake.params.rounds):
                 o.write(line)
 
     included_reads = set()
-    with open(paf) as f, open(os.path.join(out, "filtered.%d.paf" % rounds), "w") as paf_file:
+    excluded_reads = set()
+    with open(paf) as f, open(os.path.join(out, "filtered.%s.%d.paf" % (snakemake.params.prefix, rounds)), 'w') as paf_file:
         for line in f:
             qname, qlen, qstart, qstop, strand, ref, rlen, rstart, rstop = line.split()[:9]
             qlen, qstart, qstop, rlen, rstart, rstop = map(int, [qlen, qstart, qstop, rlen, rstart, rstop])
+            if snakemake.params.illumina:
+                qname = qname[:-2]
             if ref in low_cov:
                 paf_file.write(line)
                 included_reads.add(qname)
             elif ref in high_cov:
                 sample_rate = max_cov / cov_dict[ref]
-                if random.random() < sample_rate:
+                if qname in excluded_reads:
+                    pass
+                elif qname in included_reads:
+                    paf_file.write(line)
+                elif random.random() < sample_rate:
                     included_reads.add(qname)
                     paf_file.write(line)
-
-
-    with open(os.path.join(out, "reads.%d.lst" % rounds), "w") as o:
+                else:
+                    excluded_reads.add(qname)
+    with open(os.path.join(out, "reads.%s.%d.lst" % (snakemake.params.prefix, rounds)), "w") as o:
         for i in included_reads:
-            o.write(i + '\n')
-    subprocess.Popen("seqtk subseq %s %s/reads.%d.lst | gzip > %s/reads.%d.fastq.gz" % (reads, out, rounds, out, rounds), shell=True).wait()
-    subprocess.Popen("racon -t %d -u %s/reads.%d.fastq.gz %s/filtered.%d.paf %s/filtered.%d.fa"
-                     " > %s/filtered.%d.pol.fa" % (threads, out, rounds, out, rounds, out, rounds, out, rounds), shell=True).wait()
+            if snakemake.params.illumina:
+                o.write(i + '/1\n')
+                o.write(i + '/2\n')
+            else:
+                o.write(i + '\n')
+    subprocess.Popen("seqtk subseq %s %s/reads.%s.%d.lst | gzip > %s/reads.%s.%d.fastq.gz" % \
+                     (reads, out, snakemake.params.prefix, rounds, out, snakemake.params.prefix, rounds), shell=True).wait()
+    subprocess.Popen("racon -m 8 -x -6 -g -8 -w 500 -t %d -u %s/reads.%s.%d.fastq.gz %s/filtered.%s.%d.paf %s/filtered.%s.%d.fa"
+                     " > %s/filtered.%s.%d.pol.fa" % (snakemake.threads, out, snakemake.params.prefix, rounds, out,
+                                                   snakemake.params.prefix, rounds, out, snakemake.params.prefix, rounds,
+                                                   out, snakemake.params.prefix, rounds), shell=True).wait()
 
-    with open(os.path.join(out, "combined.%d.pol.fa" % rounds), "w") as o:
-        with open(os.path.join(out, "filtered.%d.pol.fa" % rounds)) as f:
+    with open(os.path.join(out, "combined.%s.%d.pol.fa" % (snakemake.params.prefix, rounds)), "w") as o:
+        with open(os.path.join(out, "filtered.%s.%d.pol.fa" % (snakemake.params.prefix, rounds))) as f:
             gotten_set = set()
             for line in f:
                 if line.startswith('>'):
@@ -95,6 +124,6 @@ for rounds in range(snakemake.params.rounds):
                         get_line = True
                 if get_line:
                     o.write(line)
-    reference = os.path.join(out, "combined.%d.pol.fa" % rounds)
+    reference = os.path.join(out, "combined.%s.%d.pol.fa" % (snakemake.params.prefix, rounds))
 
 shutil.copy2(reference, snakemake.output.fasta)

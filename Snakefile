@@ -2,19 +2,56 @@ configfile: "config.yaml"
 
 workdir: config["workdir"]
 
-
-
-ruleorder: map_reads_ref > copy_reads
+ruleorder: skip_long_assembly > get_reads_list_ref > copy_reads > short_only
+ruleorder: filter_illumina_assembly > short_only
 ruleorder: filter_illumina_ref > filter_illumina_ref_interleaved > ill_copy_reads > ill_copy_reads_interleaved
-ruleorder: process_combination_assembly > process_long_only
-ruleorder: metabat_binning_combined > metabat_binning_long
-ruleorder: pool_reads_combo > pool_reads_long
-ruleorder: get_fastq_pool_combo > get_fastq_pool_long
-ruleorder: final_cov_combo > final_cov_long
+ruleorder: fastqc > fastqc_long
+ruleorder: polish_isolate_racon_ill > skip_illumina_polish
+ruleorder: combine_assemblies > combine_long_only
+ruleorder: instrain > instrain_long
+ruleorder: skip_long_assembly > get_high_cov_contigs > short_only
+ruleorder: skip_long_assembly > filter_illumina_assembly
+# Filter reads against a reference (i.e. for removing host contamination of the metagenome)
+
+
+onsuccess:
+    print("Workflow finished, no error")
+
+onerror:
+    print("An error occurred")
+    shell("mail -s \"an error occurred\" %s < {log}" % config["email"])
+
+onstart:
+    long_reads = config["long_reads"]
+    short_reads_1 = config["short_reads_1"]
+    short_reads_2 = config["short_reads_2"]
+    unassembled_long = config["unassembled_long"]
+    reference_filter = config["reference_filter"]
+    meta_genome_size = config["meta_genome_size"]
+    checkm_folder = config["checkm_folder"]
+    gtdbtk_folder = config["gtdbtk_folder"]
+    busco_folder = config["busco_folder"]
+    profile_read_list = config["profile_read_list"]
+    import os
+    if long_reads == "none" and short_reads_1 == "none":
+        sys.exit("Need at least one of long_reads, short_reads_1")
+    if long_reads != "none" and not os.path.exists(long_reads):
+        sys.exit("long_reads does not point to a file")
+    if short_reads_1 != "none" and not os.path.exists(short_reads_1):
+        sys.exit("short_reads_1 does not point to a file")
+    if short_reads_2 != "none" and not os.path.exists(short_reads_2):
+        sys.exit("short_reads_2 does not point to a file")
+    if unassembled_long != "none" and not os.path.exists(unassembled_long):
+        sys.exit("unassembled_long does not point to a file")
+    if checkm_folder != "none" and not os.path.exists(checkm_folder):
+        sys.stderr.write("checkm_folder does not point to a folder\n")
+    if gtdbtk_folder != "none" and not os.path.exists(gtdbtk_folder):
+        sys.stderr.write("gtdbtk_folder does not point to a folder\n")
+    if busco_folder != "none" and not os.path.exists(busco_folder):
+        sys.stderr.write("busco_folder does not point to a folder\n")
 
 
 
-# Map nanopore reads to reference genome you want to filter
 rule map_reads_ref:
     input:
         fastq = config["long_reads"],
@@ -69,65 +106,43 @@ rule copy_reads:
             shell("cat {input.fastq} | gzip > {output}")
 
 
-# use seqtk to get read lengths
-rule get_read_lengths:
+
+rule flye_assembly:
     input:
-        "data/long_reads.fastq.gz"
+        fastq = "data/long_reads.fastq.gz"
     output:
-        "data/long_read_stats.txt"
+        fasta = "data/flye/assembly.fasta",
+        graph = "data/flye/assembly_graph.gfa",
+        info = "data/flye/assembly_info.txt"
+    params:
+        genome_size = config["meta_genome_size"]
     conda:
-        "envs/seqtk.yaml"
+        "envs/flye.yaml"
+    threads:
+        config["max_threads"]
     shell:
-        "seqtk fqchk {input} > {output}"
-
-# from the seqtk file of read lengths, decide on cutoffs to use for the step down metagenome assembly
-rule get_read_cutoffs:
-    input:
-        "data/long_read_stats.txt"
-    output:
-        "data/cutoffs.txt"
-    params:
-        "10"
-    script:
-        "scripts/get_read_cutoffs_2.py"
+        "flye --nano-raw {input.fastq} --meta -o data/flye -t {threads} -g {params.genome_size}"
 
 
-# peform the step down metagenome assembly
-rule step_down_meta_assembly:
+rule polish_metagenome_racon:
     input:
         fastq = "data/long_reads.fastq.gz",
-        cutoffs = "data/cutoffs.txt"
-    params:
-        minimum_coverage = 30,
-        long_only = config["short_reads_1"] == "none"
-    output:
-        "data/combined_assembly_long.fasta"
+        fasta = "data/flye/assembly.fasta"
     conda:
-        "envs/sdmass.yaml"
+        "envs/racon.yaml"
     threads:
-         config["max_threads"]
-    script:
-        "scripts/step_down_meta_assembly.py"
-
-rule polish_sdmass:
-    input:
-        fastq = "data/long_reads.fastq.gz",
-        fasta = "data/combined_assembly_long.fasta"
-    output:
-        fasta = "data/combined_assembly_long.pol.fasta"
+        config["max_threads"]
     params:
-        rounds = 2,
-        prefix = "first",
-        maxcov = 300
-    conda:
-         "envs/racon.yaml"
-    threads:
-         config["max_threads"]
+        prefix = "racon",
+        maxcov = 200,
+        rounds = 3,
+        illumina = False
+    output:
+        fasta = "data/assembly.pol.rac.fasta"
     script:
-         "scripts/racon_polish.py"
+        "scripts/racon_polish.py"
 
-
-# filter illumina reads that don't map to a user selected reference
+### Steps if illumina data exists
 rule filter_illumina_ref:
     input:
         fastq_1 = config["short_reads_1"],
@@ -170,27 +185,144 @@ rule ill_copy_reads:
     conda:
         "envs/seqtk.yaml"
     shell:
-        "seqtk mergepe {input.fastq_1} {input.fastq_2} | gzip > {output}"
+        "rename.sh prefix=SLAM in={input.fastq_1} in2={input.fastq_2} out={output} addpairnum=f"
+
+
+
 
 rule ill_copy_reads_interleaved:
     input:
         fastq = config["short_reads_1"]
     output:
         "data/short_reads.fastq.gz"
-    run:
-        if input.fastq[-3:] == ".gz":
-            shell("ln -s {input.fastq} {output}")
-        else:
-            shell("cat {input.fastq} | gzip > {output}")
+    conda:
+        "envs/seqtk.yaml"
+    shell:
+        "rename.sh prefix=SLAM in={input.fastq_1} out={output} addpairnum=f int=t"
 
 
-# filter illumina reada against the nanopore wtdbg2 assemblies
-rule filter_illumina_wtdbg2:
+rule polish_meta_pilon:
+    input:
+        reads = "data/short_reads.fastq.gz",
+        fasta = "data/assembly.pol.rac.fasta"
+    output:
+        fasta = "data/assembly.pol.pil.fasta",
+        bam = "data/pilon.sort.bam"
+    threads:
+        config["max_threads"]
+    params:
+        pilon_memory = config["pilon_memory"]
+    conda:
+        "envs/pilon.yaml"
+    shell:
+        "minimap2 -ax sr -t {threads} {input.fasta} {input.reads} | samtools view -b | " \
+        "samtools sort -o {output.bam} - && samtools index {output.bam} && " \
+        "pilon -Xmx{params.pilon_memory}000m --genome {input.fasta} --frags data/pilon.sort.bam --threads {threads} --output data/assembly.pol.pil --fix bases"
+
+
+rule polish_meta_racon_ill:
     input:
         fastq = "data/short_reads.fastq.gz",
-        reference = "data/combined_assembly_long.pol.fasta"
+        fasta = "data/assembly.pol.pil.fasta"
     output:
-        bam = "data/short_vs_wtdbg2.sort.bam",
+        fasta = "data/assembly.pol.fin.fasta",
+        paf = "data/racon_polishing/alignment.racon_ill.0.paf"
+    threads:
+        config["max_threads"]
+    conda:
+        "envs/racon.yaml"
+    params:
+        prefix = "racon_ill",
+        maxcov = 200,
+        rounds = 1,
+        illumina = True
+    script:
+        "scripts/racon_polish.py"
+
+
+rule get_high_cov_contigs:
+    input:
+        info = "data/flye/assembly_info.txt",
+        fasta = "data/assembly.pol.fin.fasta",
+        graph = "data/flye/assembly_graph.gfa",
+        paf = "data/racon_polishing/alignment.racon_ill.0.paf"
+    output:
+        fasta = "data/flye_high_cov.fasta"
+    params:
+        min_cov_long = 20.0,
+        min_cov_short = 10.0,
+        short_contig_size = 200000,
+        long_contig_size = 500000
+    run:
+        ill_cov_dict = {}
+        with open(input.paf) as paf:
+            for line in paf:
+                query, qlen, qstart, qend, strand, ref, rlen, rstart, rend = line.split()[:9]
+                ref = ref[:-6]
+                if not ref in ill_cov_dict:
+                    ill_cov_dict[ref] = 0.0
+                ill_cov_dict[ref] += (int(rend) - int(rstart)) / int(rlen)
+        count = 0
+        with open(input.info) as f:
+            f.readline()
+            high_cov_set = set()
+            short_edges = {}
+            for line in f:
+                if int(line.split()[1]) > params.long_contig_size:
+                    high_cov_set.add(line.split()[0])
+                elif int(line.split()[1]) < params.short_contig_size:
+                    se1 = line.split()[6].split(',')[0]
+                    if se1.startswith('-'):
+                        se1 = ("edge_" + se1[1:], True)
+                    else:
+                        se1 = ("edge_" + se1, False)
+                    se2 = line.split()[6].split(',')[-1]
+                    if se2.startswith('-'):
+                        se2 = ("edge_" + se2[1:], False)
+                    else:
+                        se2 = ("edge_" + se2, True)
+                    if not se1 in short_edges:
+                        short_edges[se1] = []
+                    short_edges[se1].append(line.split()[0])
+                    if not se2 in short_edges:
+                        short_edges[se2] = []
+                    short_edges[se2].append(line.split()[0])
+                if float(line.split()[2]) >= params.min_cov_long or not line.split()[0] in ill_cov_dict or ill_cov_dict[line.split()[0]] <= params.min_cov_short:
+                    high_cov_set.add(line.split()[0])
+        with open(input.graph) as f:
+            filtered_contigs = set()
+            for line in f:
+                if line.startswith("L"):
+                    if (line.split()[1], line.split()[2] == '+') in short_edges and (line.split()[3], line.split()[4] == '-') in short_edges and not line.split()[1] == line.split()[3]:
+                        for i in short_edges[(line.split()[1], line.split()[2] == '+')]:
+                            filtered_contigs.add(i)
+                        for i in short_edges[(line.split()[3], line.split()[4] == '-')]:
+                            filtered_contigs.add(i)
+        for i in filtered_contigs:
+            try:
+                high_cov_set.remove(i)
+            except KeyError:
+                pass
+        with open(input.fasta) as f, open(output.fasta, 'w') as o:
+            write_line = False
+            for line in f:
+                if line.startswith('>') and line.split()[0][1:-6] in high_cov_set:
+                    write_line = True
+                elif line.startswith('>'):
+                    write_line = False
+                if write_line:
+                    o.write(line)
+
+
+
+
+# filter illumina reads against the nanopore assembly
+rule filter_illumina_assembly:
+    input:
+        reference = "data/flye_high_cov.fasta",
+        fastq = "data/short_reads.fastq.gz"
+    output:
+        bam = "data/sr_vs_long.sort.bam",
         fastq = "data/short_reads.filt.fastq.gz"
     conda:
         "envs/minimap2.yaml"
@@ -202,178 +334,119 @@ rule filter_illumina_wtdbg2:
         "samtools bam2fq -f 12 {output.bam} | gzip > {output.fastq}"
 
 
-
-
-# assemble filtered illumina reads with megahit
-rule megahit_assembly:
+rule skip_long_assembly:
     input:
-        fastq = "data/short_reads.filt.fastq.gz"
+        fastq = "data/short_reads.fastq.gz",
+        unassembled_long = config["unassembled_long"]
     output:
-        fasta = "data/mega_assembly.fasta"
+        fastq = "data/short_reads.filt.fastq.gz",
+        fasta = "data/flye_high_cov.fasta",
+        long_reads = "data/long_reads.fastq.gz"
+    shell:
+        "ln {input.fastq} {output.fastq} && touch {output.fasta} && ln {input.unassembled_long} {output.long_reads}"
+
+rule short_only:
+    input:
+        fastq = "data/short_reads.fastq.gz"
+    output:
+        fastq = "data/short_reads.filt.fastq.gz",
+        fasta = "data/flye_high_cov.fasta",
+        long_reads = "data/long_reads.fastq.gz"
+    shell:
+        "ln {input.fastq} {output.fastq} && touch {output.fasta} && touch {output.long_reads}"
+
+# assemble filtered illumina reads with spades
+rule spades_assembly:
+    input:
+        fastq = "data/short_reads.filt.fastq.gz",
+        long_reads = "data/long_reads.fastq.gz"
+    output:
+        fasta = "data/spades_assembly.fasta"
     threads:
          config["max_threads"]
     conda:
-        "envs/megahit.yaml"
+        "envs/spades.yaml"
     shell:
-        "if LC_ALL=C gzip -l {input.fastq} | awk 'NR==2 {{exit($2!=0)}}'; then touch {output.fasta}; " \
-        "else megahit -t {threads} --12 {input.fastq} -o data/mega_assembly && ln data/mega_assembly/final.contigs.fa data/mega_assembly.fasta; fi"
+        "minimumsize=500000 && actualsize=$(stat -c%s data/short_reads.filt.fastq.gz) && " \
+        "if [ $actualsize -ge $minimumsize ]; then " \
+        "spades.py --meta --nanopore {input.long_reads} --12 {input.fastq} -o data/spades_assembly -t {threads} -k 21,33,55,81,99,127 && ln data/spades_assembly/scaffolds.fasta data/spades_assembly.fasta; " \
+        "else touch {output.fasta}; fi"
 
 
-
-
-
-rule process_combination_assembly:
+rule metabat_binning_short:
     input:
-        long_assembly = "data/combined_assembly_long.pol.fasta",
-        short_assembly = "data/mega_assembly.fasta",
-        illumina_reads = "data/short_reads.filt.fastq.gz",
-        ill_vs_wtdbg2_bam = "data/short_vs_wtdbg2.sort.bam"
+         fastq = "data/short_reads.filt.fastq.gz",
+         fasta = "data/spades_assembly.fasta"
     output:
-        fasta = "data/merged_assembly.fasta",
-        bam = "data/short_vs_merged_assembly.sort.bam"
+         metabat_done = "data/metabat_bins/done",
+         bam = "data/short_vs_mega.bam"
+    conda:
+         "envs/metabat2.yaml"
+    shell:
+         "minimap2 -ax sr -t {threads} {input.fasta} {input.fastq} |  samtools view -b | "\
+         "samtools sort -o data/short_vs_mega.bam - && samtools index {output.bam} && "\
+         "jgi_summarize_bam_contig_depths --outputDepth data/megahit.cov data/short_vs_mega.bam && " \
+         "mkdir -p data/metabat_bins && " \
+         "metabat --seed 89 --unbinned -m 1500 -l -i {input.fasta} -a data/megahit.cov -o data/metabat_bins/binned_contigs && " \
+         "touch data/metabat_bins/done"
+
+rule map_long_mega:
+    input:
+        fastq = "data/long_reads.fastq.gz",
+        fasta = "data/spades_assembly.fasta"
+    output:
+        bam = "data/long_vs_mega.bam"
     threads:
         config["max_threads"]
-    conda:
-        "envs/pilon.yaml"
-    shell:
-        "minimap2 -ax sr -t {threads} {input.short_assembly} {input.illumina_reads} | samtools view -b | " \
-        "samtools sort -o data/mega_assembly.sort.bam - && samtools index data/mega_assembly.sort.bam && " \
-        "pilon -Xmx64000m --genome {input.long_assembly} --frags {input.ill_vs_wtdbg2_bam} --threads {threads} --output data/long_pilon_1 --fix bases && "\
-        "sed -i 's/_pilon//g' data/long_pilon_1.fasta && "\
-        "samtools merge {output.bam} {input.ill_vs_wtdbg2_bam} data/mega_assembly.sort.bam && "\
-        "cat data/long_pilon_1.fasta {input.short_assembly} > {output.fasta}"
-
-
-
-rule process_long_only:
-    input:
-        fasta = "data/combined_assembly_long.pol.fasta",
-        reads = "data/long_reads.fastq.gz"
-    output:
-        bam = "data/long_reads_vs_comb_long.sort.bam"
     conda:
         "envs/minimap2.yaml"
-    threads:
-        config["max_threads"]
     shell:
-        "minimap2 -t {threads} -ax map-ont {input.fasta} {input.reads} |  samtools view -b | " \
+        "minimap2 -t {threads} -ax map-ont -a {input.fasta} {input.fastq} |  samtools view -b | " \
         "samtools sort -o {output.bam} - && samtools index {output.bam}"
 
 
-
-rule metabat_binning_long:
+rule pool_reads:
     input:
-         bam = "data/long_reads_vs_comb_long.sort.bam",
-         fasta = "data/combined_assembly_long.pol.fasta"
-    output:
-         metabat_done = "data/metabat_bins/done"
-    conda:
-         "envs/metabat2.yaml"
-    shell:
-         "jgi_summarize_bam_contig_depths --percentIdentity 75 --outputDepth data/merged_contigs.cov {input.bam} && " \
-         "mkdir -p data/metabat_bins && " \
-         "metabat --seed 89 -l -i {input.fasta} -a data/merged_contigs.cov -o data/metabat_bins/binned_contigs && " \
-         "touch data/metabat_bins/done"
-
-
-
-rule metabat_binning_combined:
-    input:
-         bam = "data/short_vs_merged_assembly.sort.bam",
-         fasta = "data/merged_assembly.fasta"
-    output:
-         metabat_done = "data/metabat_bins/done"
-    conda:
-         "envs/metabat2.yaml"
-    shell:
-         "jgi_summarize_bam_contig_depths --outputDepth data/merged_contigs.cov {input.bam} && " \
-         "mkdir -p data/metabat_bins && " \
-         "metabat --seed 89 -l -i {input.fasta} -a data/merged_contigs.cov -o data/metabat_bins/binned_contigs && " \
-         "touch data/metabat_bins/done"
-
-
-rule pool_reads_long:
-    input:
-        long_bam = "data/long_reads_vs_comb_long.sort.bam",
+        long_bam = "data/long_vs_mega.bam",
+        short_bam = "data/short_vs_mega.bam",
         metabat_done = "data/metabat_bins/done"
     output:
         list = "data/list_of_lists.txt"
     conda:
         "envs/pysam.yaml"
-    params:
-        long_only = True
     script:
         "scripts/pool_reads.py"
 
 
-
-rule align_long_reads_combo:
+rule get_read_pools:
     input:
-        fasta = "data/merged_assembly.fasta",
-        reads = "data/long_reads.fastq.gz"
-    output:
-        bam = "data/long_reads_vs_comb_all.sort.bam"
-    conda:
-        "envs/minimap2.yaml"
-    threads:
-        config["max_threads"]
-    shell:
-        "minimap2 -t {threads} -ax map-ont {input.fasta} {input.reads} |  samtools view -b | " \
-        "samtools sort -o {output.bam} - && samtools index {output.bam}"
-
-
-rule pool_reads_combo:
-    input:
-        long_bam = "data/long_reads_vs_comb_all.sort.bam",
-        short_bam = "data/short_vs_merged_assembly.sort.bam",
-        metabat_done = "data/metabat_bins/done"
-    output:
-        list = "data/list_of_lists.txt"
-    conda:
-        "envs/pysam.yaml"
-    params:
-        long_only = False
-    script:
-        "scripts/pool_reads.py"
-
-
-rule get_fastq_pool_combo:
-    input:
-        list = "data/list_of_lists.txt",
         long_reads = "data/long_reads.fastq.gz",
-        short_reads = "data/short_reads.fastq.gz"
+        short_reads = "data/short_reads.fastq.gz",
+        list = "data/list_of_lists.txt"
     output:
-        fastq_list = "data/binned_reads/done"
+        "data/binned_reads/done"
     conda:
-        "envs/seqtk.yaml"
+         "envs/mfqe.yaml"
     shell:
-        "gawk '{{print $2}}' {input.list} | while read list; do seqtk subseq {input.long_reads} $list | gzip > $list.fastq.gz; done &&"\
-        "gawk '{{if ($5) print $5}}' {input.list} | while read list; do seqtk seq -1 {input.short_reads} | seqtk subseq - $list | gzip > $list.1.fastq.gz; done &&"\
-        "gawk '{{if ($5) print $5}}' {input.list} | while read list; do seqtk seq -2 {input.short_reads} | seqtk subseq - $list | gzip > $list.2.fastq.gz; done &&"\
-        "touch data/binned_reads/done"
+         'eval $(printf "zcat {input.long_reads} | mfqe --fastq-read-name-lists "; for file in data/binned_reads/*.long.list; do printf "$file "; done;'\
+         ' printf " --output-fastq-files "; for file in data/binned_reads/*.long.list; do printf "${{file:0:-5}}.fastq.gz "; done; printf "\n") && ' \
+         'eval $(printf "seqtk seq -1 {input.short_reads} | mfqe --fastq-read-name-lists "; for file in data/binned_reads/*.short.list; do printf "$file "; done;'\
+         ' printf " --output-fastq-files "; for file in data/binned_reads/*.short.list; do printf "${{file:0:-5}}.1.fastq.gz "; done; printf "\n") && ' \
+         'eval $(printf "seqtk seq -2 {input.short_reads} | mfqe --fastq-read-name-lists "; for file in data/binned_reads/*.short.list; do printf "$file "; done;'\
+         ' printf " --output-fastq-files "; for file in data/binned_reads/*.short.list; do printf "${{file:0:-5}}.2.fastq.gz "; done; printf "\n") && touch {output} || touch {output}'
 
-
-rule get_fastq_pool_long:
-    input:
-        list = "data/list_of_lists.txt",
-        reads = "data/long_reads.fastq.gz"
-    output:
-        fastq_list = "data/binned_reads/done"
-    conda:
-        "envs/seqtk.yaml"
-    shell:
-        "gawk '{{print $2}}' {input.list} | while read list; do seqtk subseq {input.reads} $list | gzip > $list.fastq.gz; done &&"\
-        "touch data/binned_reads/done"
 
 
 rule assemble_pools:
     input:
         fastq = "data/binned_reads/done",
-        list = "data/list_of_lists.txt"
+        list = "data/list_of_lists.txt",
+        fasta = "data/spades_assembly.fasta",
+        metabat_done = "data/metabat_bins/done"
     threads:
         config["max_threads"]
     output:
-        summary = "data/canu_assembly_summary.txt"
+        fasta = "data/unicycler_combined.fa"
     conda:
         "envs/final_assembly.yaml"
     threads:
@@ -381,113 +454,291 @@ rule assemble_pools:
     script:
         "scripts/assemble_pools.py"
 
-rule cat_pools:
-    input:
-        summary = "data/canu_assembly_summary.txt"
-    output:
-        fasta = "data/combined_final_assemblies.fasta"
-    script:
-        "scripts/concat_canu_unicyc.py"
 
-rule racon_polish_final:
-    input:
-        fastq = "data/long_reads.fastq.gz",
-        fasta = "data/combined_final_assemblies.fasta"
-    output:
-        fasta = "data/combined_final_assemblies.pol.fasta"
-    params:
-        prefix = "second",
-        maxcov = 300,
-        rounds = 2
-    conda:
-        "envs/racon.yaml"
-    threads:
-        config["max_threads"]
-    script:
-        "scripts/racon_polish.py"
-
-
-rule final_cov_combo:
+rule combine_assemblies:
     input:
         short_reads = "data/short_reads.fastq.gz",
         long_reads = "data/long_reads.fastq.gz",
-        fasta = "data/combined_final_assemblies.pol.fasta"
+        unicyc_fasta = "data/unicycler_combined.fa",
+        flye_fasta = "data/flye_high_cov.fasta"
     output:
-        bam = "data/final_cov.sort.bam",
-        long_bam = "data/long_reads_for_web.bam",
-        fasta = "data/final_contigs.fasta"
+        short_bam = "data/final_short.sort.bam",
+        fasta = "data/final_contigs.fasta",
+        long_bam = "data/final_long.sort.bam"
     conda:
-        "envs/pilon.yaml"
+        "envs/metabat2.yaml"
     threads:
         config["max_threads"]
     shell:
-        "minimap2 -t {threads} -ax sr -a {input.fasta} {input.short_reads} |  samtools view -b | " \
-        "samtools sort -o {output.bam} - && samtools index {output.bam} && " \
-        "pilon -Xmx64000m --genome {input.fasta} --frags {output.bam} --threads {threads} --output data/final_contigs --fix bases && "\
-        "sed -i 's/_pilon//g' data/final_contigs.fasta && " \
-        "minimap2 -t {threads} -ax map-ont -a data/final_contigs.fasta {input.long_reads} |  samtools view -b | " \
-        "samtools sort -o {output.long_bam} - && samtools index {output.long_bam}"
+        "cat {input.flye_fasta} {input.unicyc_fasta} > {output.fasta} && " \
+        "minimap2 -t {threads} -ax map-ont -a {output.fasta} {input.long_reads} |  samtools view -b | " \
+        "samtools sort -o {output.long_bam} - && samtools index {output.long_bam} && " \
+        "minimap2 -ax sr -t {threads} {output.fasta} {input.short_reads} |  samtools view -b | "\
+        "samtools sort -o {output.short_bam} - && samtools index {output.short_bam}"
 
 
-
-
-rule final_cov_long:
+rule combine_long_only:
     input:
-        reads = "data/long_reads.fastq.gz",
-        fasta = "data/combined_final_assemblies.pol.fasta"
+        long_reads = "data/long_reads.fastq.gz",
+        fasta = "data/assembly.pol.rac.fasta"
     output:
-        bam = "data/final_cov.sort.bam",
-        fasta = "data/final_contigs.fasta"
+        fasta = "data/final_contigs.fasta",
+        bam = "data/final_long.sort.bam",
     conda:
-        "envs/minimap2.yaml"
+        "envs/metabat2.yaml"
     threads:
         config["max_threads"]
     shell:
-        "minimap2 -t {threads} -ax map-ont -a {input.fasta} {input.reads} |  samtools view -b | " \
+        "minimap2 -t {threads} -ax map-ont -a {input.fasta} {input.long_reads} |  samtools view -b | " \
         "samtools sort -o {output.bam} - && samtools index {output.bam} && " \
         "ln {input.fasta} {output.fasta}"
+
+rule prepare_binning_files:
+    input:
+        long_reads = "data/long_reads.fastq.gz",
+        fasta = "data/final_contigs.fasta",
+    output:
+        maxbin_coverage = "data/maxbin.cov.list",
+        bams = "data/binning_bams/done",
+        metabat_coverage = "data/metabat.cov"
+    conda:
+        "envs/metabat2.yaml"
+    threads:
+        config["max_threads"]
+    script:
+        "scripts/get_coverage.py"
+
+
+rule maxbin_binning:
+    input:
+        fasta = "data/final_contigs.fasta",
+        maxbin_cov = "data/maxbin.cov.list"
+    output:
+        "data/maxbin2_bins/done"
+    conda:
+        "envs/maxbin2.yaml"
+    shell:
+        "mkdir -p data/maxbin2_bins && " \
+        "run_MaxBin.pl -contig {input.fasta} -abund_list {input.maxbin_cov} -out data/maxbin2_bins/maxbin && " \
+        "touch data/maxbin2_bins/done"
+
+
+rule concoct_binning:
+    input:
+        fasta = "data/final_contigs.fasta",
+        bam_done = "data/binning_bams/done"
+    output:
+        "data/concoct_bins/done"
+    conda:
+        "envs/concoct.yaml"
+    threads:
+        config["max_threads"]
+    shell:
+        "mkdir -p data/concoct_working && " \
+        "cut_up_fasta.py {input.fasta} -c 10000 -o 0 --merge_last -b data/concoct_working/contigs_10K.bed > data/concoct_working/contigs_10K.fa &&" \
+        "concoct_coverage_table.py data/concoct_working/contigs_10K.bed data/binning_bams/*.sort.bam > data/concoct_working/coverage_table.tsv &&" \
+        "concoct --threads {threads}  --composition_file data/concoct_working/contigs_10K.fa --coverage_file data/concoct_working/coverage_table.tsv -b data/concoct_working/ &&" \
+        "merge_cutup_clustering.py data/concoct_working/clustering_gt1000.csv > data/concoct_working/clustering_merged.csv &&" \
+        "mkdir -p data/concoct_bins &&" \
+        "extract_fasta_bins.py {input.fasta} data/concoct_working/clustering_merged.csv --output_path data/concoct_bins/ &&" \
+        "touch data/concoct_bins/done"
 
 
 rule metabat_binning_2:
     input:
-        bam = "data/final_cov.sort.bam",
-        fasta = "data/combined_final_assemblies.pol.fasta"
+        coverage = "data/metabat.cov",
+        fasta = "data/final_contigs.fasta"
     output:
-        metabat_done = "data/metabat_bins_2/done"
+        metabat_done = "data/metabat_bins_2/done",
+        metabat_sspec = "data/metabat_bins_sspec/done",
+        metabat_vspec = "data/metabat_bins_ssens/done",
+        metabat_sense = "data/metabat_bins_sens/done"
     conda:
         "envs/metabat2.yaml"
     shell:
-        "jgi_summarize_bam_contig_depths --outputDepth data/combined_final.cov data/{input.bam} && " \
         "mkdir -p data/metabat_bins_2 && " \
-        "metabat --seed 89 -i {input.fasta} -a data/combined_final.cov -o data/metabat_bins_2/binned_contigs && " \
-        "touch data/metabat_bins_2/done"
+        "metabat --seed 89 -i {input.fasta} -a {input.coverage} -o data/metabat_bins_2/binned_contigs && " \
+        "touch data/metabat_bins_2/done && " \
+        "metabat1 --seed 89 --sensitive -i {input.fasta} -a {input.coverage} -o data/metabat_bins_sens/binned_contigs && " \
+        "touch data/metabat_bins_sens/done && " \
+        "metabat1 --seed 89 --supersensitive -i {input.fasta} -a {input.coverage} -o data/metabat_bins_ssens/binned_contigs && " \
+        "touch data/metabat_bins_ssens/done && " \
+        "metabat1 --seed 89 --superspecific -i {input.fasta} -a {input.coverage} -o data/metabat_bins_sspec/binned_contigs && " \
+        "touch data/metabat_bins_sspec/done"
+
+
+rule das_tool:
+    input:
+        fasta = "data/final_contigs.fasta",
+        metabat2_done = "data/metabat_bins_2/done",
+        concoct_done = "data/concoct_bins/done",
+        maxbin_done = "data/maxbin2_bins/done",
+        metabat_sspec = "data/metabat_bins_sspec/done",
+        metabat_ssens = "data/metabat_bins_ssens/done",
+        metabat_sense = "data/metabat_bins_sens/done"
+    output:
+        das_tool_done = "data/das_tool_bins/done"
+    conda:
+        "envs/das_tool.yaml"
+    threads:
+        config["max_threads"]
+    shell:
+        "Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_2 -e fa > data/metabat_bins_2.tsv && " \
+        "Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_sspec -e fa > data/metabta_bins_sspec.tsv && " \
+        "Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_ssens -e fa > data/metabta_bins_ssens.tsv && " \
+        "Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_sens -e fa > data/metabta_bins_sens.tsv && " \
+        "Fasta_to_Scaffolds2Bin.sh -i data/concoct_bins -e fa > data/concoct_bins.tsv && " \
+        "Fasta_to_Scaffolds2Bin.sh -i data/maxbin2_bins -e fasta > data/maxbin_bins.tsv && " \
+        "DAS_Tool --search_engine diamond --write_bin_evals 1 --write_bins 1 -t {threads}" \
+        " -i data/metabat_bins_2.tsv,data/metabta_bins_sspec.tsv,data/metabta_bins_ssens.tsv,data/metabta_bins_sens.tsv,data/concoct_bins.tsv,data/maxbin_bins.tsv" \
+        " -c {input.fasta} -o data/das_tool_bins/das_tool && " \
+        "touch data/das_tool_bins/done"
+
 
 rule checkm:
     input:
-        "data/metabat_bins_2/done"
+        "data/das_tool_bins/done"
     output:
         "data/checkm.out"
     conda:
         "envs/checkm.yaml"
+    params:
+        checkm_folder = config["checkm_folder"]
     threads:
         config["max_threads"]
     shell:
-        "checkm lineage_wf -t {threads} -x fa data/metabat_bins_2 data/checkm > checkm.out"
+        'checkm lineage_wf -t {threads} -x fa data/das_tool_bins/das_tool_DASTool_bins data/checkm > data/checkm.out'
 
 
+rule fastqc:
+    input:
+        "data/short_reads.fastq.gz"
+    output:
+        "www/short_reads_fastqc.html"
+    conda:
+        "envs/fastqc.yaml"
+    threads:
+        config["max_threads"]
+    shell:
+        "fastqc -o www {input}"
 
+rule fastqc_long:
+    output:
+        "www/short_reads_fastqc.html"
+    shell:
+        'echo "no short reads" > {output}'
+
+
+rule nanoplot:
+    input:
+        "data/long_reads.fastq.gz"
+    output:
+        "www/nanoplot/longReadsNanoPlot-report.html"
+    conda:
+        "envs/nanoplot.yaml"
+    threads:
+        config["max_threads"]
+    shell:
+        "NanoPlot -o www/nanoplot -p longReads --fastq {input}"
+
+rule prodigal:
+    input:
+        fasta = "data/final_contigs.fasta"
+    output:
+        "data/genes.gff"
+    conda:
+        "envs/prodigal.yaml"
+    shell:
+        "prodigal -i {input.fasta} -f gff -o {output} -p meta"
+
+
+rule gtdbtk:
+    input:
+        "data/das_tool_bins/done"
+    output:
+        done = "data/gtdbtk/done"
+    params:
+        gtdbtk_folder = config['gtdbtk_folder']
+    conda:
+        "envs/gtdbtk.yaml"
+    threads:
+        config["max_threads"]
+    shell:
+        "export GTDBTK_DATA_PATH={params.gtdbtk_folder} && " \
+        "gtdbtk classify_wf --cpus {threads} --extension fa --genome_dir data/das_tool_bins/das_tool_DASTool_bins --out_dir data/gtdbtk && touch data/gtdbtk/done"
+
+
+rule busco:
+    input:
+        "data/das_tool_bins/done"
+    output:
+        done = "data/busco/done"
+    params:
+        busco_folder = config["busco_folder"]
+    conda:
+        "envs/busco.yaml"
+    threads:
+        config["max_threads"]
+    shell:
+        "mkdir -p data/busco && cd data/busco && minimumsize=500000 && " \
+        "for file in ../das_tool_bins/das_tool_DASTool_bins/*.fa; do " \
+        "actualsize=$(wc -c <\"$file\"); " \
+        "if [ $actualsize -ge $minimumsize ]; then " \
+        "run_busco -q -c {threads} -t bac_tmp.${{file:33:-3}} -i $file -o bacteria_odb9.${{file:39:-3}} -l {params.busco_folder}/bacteria_odb9 -m geno; " \
+        "run_busco -q -c {threads} -t euk_tmp.${{file:33:-3}} -i $file -o eukaryota_odb9.${{file:39:-3}} -l {params.busco_folder}/eukaryota_odb9 -m geno; " \
+        "run_busco -q -c {threads} -t emb_tmp.${{file:33:-3}} -i $file -o embryophyta_odb9.${{file:39:-3}} -l {params.busco_folder}/embryophyta_odb9 -m geno; " \
+        "run_busco -q -c {threads} -t fun_tmp.${{file:33:-3}} -i $file -o fungi_odb9.${{file:39:-3}} -l {params.busco_folder}/fungi_odb9 -m geno; " \
+        "run_busco -q -c {threads} -t met_tmp.${{file:33:-3}} -i $file -o metazoa_odb9.${{file:39:-3}} -l {params.busco_folder}/metazoa_odb9 -m geno; " \
+        "run_busco -q -c {threads} -t pro_tmp.${{file:33:-3}} -i $file -o protists_ensembl.${{file:39:-3}} -l {params.busco_folder}/protists_ensembl -m geno; " \
+        "fi; done && " \
+        "cd ../../ && touch data/busco/done"
+
+rule instrain_long:
+    input:
+        bam = "data/final_long.sort.bam",
+        fasta = "data/final_contigs.fasta"
+    output:
+        profile = "data/instrain/output/instrain_scaffold_info.tsv"
+    threads:
+        config["max_threads"]
+    conda:
+        "envs/instrain.yaml"
+    shell:
+        "inStrain profile -o data/instrain {input.bam} {input.fasta}"
+
+
+rule instrain:
+    input:
+        bam = "data/final_short.sort.bam",
+        fasta = "data/final_contigs.fasta"
+    output:
+        profile = "data/instrain/output/instrain_scaffold_info.tsv"
+    threads:
+        config["max_threads"]
+    conda:
+        "envs/instrain.yaml"
+    shell:
+        "inStrain profile {input.bam} {input.fasta} -o data/instrain"
 
 rule create_webpage:
     input:
         checkm_file = "data/checkm.out",
-        metabat_bins = "data/metabat_bins_2/done",
-        fasta = "data/combined_final_assemblies.pol.fasta"
+        metabat_bins = "data/das_tool_bins/done",
+        busco_done = "data/busco/done",
+        fasta = "data/final_contigs.fasta",
+        long_reads_qc_html = "www/nanoplot/longReadsNanoPlot-report.html",
+        short_reads_qc_html = "www/short_reads_fastqc.html",
+        genes_gff = "data/genes.gff",
+        gtdbtk_done = "data/gtdbtk/done",
+        strain_profile = "data/instrain/output/instrain_scaffold_info.tsv"
     output:
         "www/index.html"
     threads:
         config["max_threads"]
+    conda:
+        "envs/webpage.yaml"
     script:
-        "create_sdmass_webpage.py"
+        "scripts/create_sdmass_webpage.py"
 
 
 #############################
@@ -495,27 +746,40 @@ rule create_webpage:
 #############################
 
 
-rule process_unsorted_reads:
+rule process_reads:
     input:
-         nano_dir = config["nanopore_dir"]
+         html = "QC/read_qc.html",
+         image = "QC/velocity.png"
     output:
-         "processed_reads/barcoding_summary.txt"
-    params:
-         barcode_kit = "EXP-PBC001"
+        "barcoded_reads/done"
     threads:
-         config["max_threads"]
+        config["max_threads"]
+    params:
+        fastq_pass = config["fastq_pass_dir"]
     shell:
-         "module load guppy && guppy_barcoder -t {threads} --barcode_kits {params.barcode_kit} --input_path {input.nano_dir}/fastq_pass processed_reads"
+        "for file in {params.fastq_pass}/*; do cat $file/* | gzip > barcoded_reads/${{file##*/}}.fastq.gzip ; done && touch {output}"
 
 
-rule split_reads:
+
+rule read_qc:
     input:
-         reads = config["nanopore_dir"],
-         barcode_summary = "processed_reads/barcoding_summary.txt"
+         sequence_summary = config["sequence_summary"]
     output:
-         "processed_reads/read_count.tsv"
+         "QC/read_qc.html"
+    conda:
+        "envs/pycoQC.yaml"
+    shell:
+         "pycoQC -f {input.sequence_summary} -o {output}"
+
+rule read_velocity:
+    input:
+        sequence_summary = config["sequence_summary"]
+    output:
+        image = "QC/velocity.png"
+    conda:
+        "envs/matplotlib.yaml"
     script:
-         "sort_barcoded_reads.py"
+        "scripts/read_stats_long.py"
 
 
 
@@ -524,44 +788,111 @@ rule split_reads:
 ####################
 
 
-rule assemble_reads_canu:
+rule assemble_reads_flye:
     input:
         reads = config["long_reads"]
     output:
-        contigs = "isolate/canu/isolate.contigs.fasta"
+        contigs = "isolate/flye/assembly.fasta"
     conda:
-        "envs/final_assembly.yaml"
+        "envs/flye.yaml"
     params:
         genome_size = config["genome_size"]
     threads:
         config["max_threads"]
     shell:
-        "canu -d isolate/canu -p isolate stopOnLowCoverage=5 maxThreads={threads} useGrid=false genomeSize=%d -nanopore-raw %s"
+        "flye --nano-raw {input.reads} --threads {threads} -o isolate/flye -g {params.genome_size} --asm-coverage 100"
+
 
 rule polish_isolate_racon:
     input:
-        reads = config["long_reads"],
-        contigs = "isolate/canu/isolate.contigs.fasta"
+        fastq = config["long_reads"],
+        fasta = "isolate/flye/assembly.fasta"
     conda:
         "envs/racon.yaml"
     threads:
         config["max_threads"]
+    params:
+        prefix = "second",
+        maxcov = 1000,
+        rounds = 4,
+        illumina = False
     output:
-        fasta = "isolate/isolate.polished.contigs.fasta"
+        fasta = "isolate/isolate.pol.rac.fasta"
     script:
-        "racon_polish.py"
+        "scripts/racon_polish.py"
+
+
+rule polish_isolate_medaka:
+    input:
+        reads = config["long_reads"],
+        contigs = "isolate/isolate.pol.rac.fasta"
+    conda:
+        "envs/medaka.yaml"
+    threads:
+        config["max_threads"]
+    params:
+        model = config["guppy_model"]
+    output:
+        fasta = "isolate/isolate.pol.med.fasta"
+    shell:
+        "medaka_consensus -i {input.reads} -d {input.contigs} -o isolate/medaka/ -t {threads} -m {params.model} && " \
+        "cp isolate/medaka/consensus.fasta {output.fasta}"
+
 
 rule polish_isolate_pilon:
     input:
-        reads = config["short_reads"],
-        fasta = "isolate/isolate.polished.contigs.fasta"
+        reads = "data/short_reads.fastq.gz",
+        fasta = "isolate/isolate.pol.med.fasta"
     output:
-        fasta = "isolate/final_assembly.fasta",
+        fasta = "isolate/isolate.pol.pil.fasta",
     threads:
         config["max_threads"]
     conda:
         "envs/pilon.yaml"
     shell:
-        "minimap2 -ax sr -t {threads} {input.fasta} {input.illumina_reads} | samtools view -b | " \
-        "samtools sort -o isolate/final_assembly.sort.bam - && samtools index data/final_assembly.sort.bam && " \
-        "pilon -Xmx64000m --genome {input.fasta} --frags isolate/final_assembly.sort.bam --threads {threads} --output data/final_assembly --fix bases"
+        "minimap2 -ax sr -t {threads} {input.fasta} {input.reads} | samtools view -b | " \
+        "samtools sort -o isolate/pilon.sort.bam - && samtools index isolate/pilon.sort.bam && " \
+        "pilon -Xmx64000m --genome {input.fasta} --frags isolate/pilon.sort.bam --threads {threads} --output isolate/isolate.pol.pil --fix bases"
+
+
+rule polish_isolate_racon_ill:
+    input:
+        fastq = "data/short_reads.fastq.gz",
+        fasta = "isolate/isolate.pol.pil.fasta"
+    output:
+        fasta = "isolate/isolate.pol.fin.fasta"
+    threads:
+        config["max_threads"]
+    conda:
+        "envs/racon.yaml"
+    params:
+        prefix = "racon_ill",
+        maxcov = 1000,
+        rounds = 1,
+        illumina = True
+    script:
+        "scripts/racon_polish.py"
+
+
+rule skip_illumina_polish:
+    input:
+        fasta = "isolate/isolate.pol.med.fasta"
+    output:
+        fasta = "isolate/isolate.pol.fin.fasta"
+    shell:
+        "cp {input.fasta} {output.fasta}"
+
+
+rule circlator:
+    input:
+        fasta = "isolate/isolate.pol.fin.fasta",
+        reads = config["long_reads"]
+    output:
+        fasta = "isolate/completed_assembly.fasta"
+    threads:
+        config["max_threads"]
+    conda:
+        "envs/circlator.yaml"
+    shell:
+        "circlator all {input.fasta} {input.reads} isolate/circlator && cp isolate/circlator/06.fixstart.fasta {output.fasta}"
+

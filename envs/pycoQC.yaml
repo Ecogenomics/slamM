@@ -1,5 +1,5 @@
 channels:
   - bioconda
-  - conda-forge
 dependencies:
-  - unicycler = 0.4.4
+  - pycoqc >= 2.2.3
+  - pysam

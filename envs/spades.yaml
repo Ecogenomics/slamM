@@ -2,4 +2,6 @@ channels:
   - bioconda
   - conda-forge
 dependencies:
-  - unicycler = 0.4.4
+  - spades >= 3.13.2
+  - pyyaml
+  - joblib
