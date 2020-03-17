@@ -19,7 +19,6 @@ onsuccess:
 
 onerror:
     print("An error occurred")
-    shell("mail -s \"an error occurred\" %s < {log}" % config["email"])
 
 onstart:
     long_reads = config["long_reads"]
