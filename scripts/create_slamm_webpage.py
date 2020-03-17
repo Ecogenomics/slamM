@@ -7581,7 +7581,7 @@ def get_busco(busco_folder):
 
 
 
-def create_main_page(outfile, fasta, checkm_file, contig_folder, long_bam, short_bam, gff_file, long_qc_html, short_qc_html, gtdbtk_dir, busco_dir, strain_profile, min_contig_size=100000):
+def create_main_page(outfile, fasta, checkm_file, contig_folder, long_bam, short_bam, gff_file, long_qc_html, short_qc_html, gtdbtk_dir, busco_dir, instrain_file, min_contig_size=100000):
     with open(fasta) as f:
         len_dict = {}
         for line in f:
@@ -7605,7 +7605,8 @@ def create_main_page(outfile, fasta, checkm_file, contig_folder, long_bam, short
     with open(instrain_file) as f:
         f.readline()
         for line in f:
-            instrain_dict[line.split()[0]] = float(line.split('\t')[9])
+            if line.split('\t')[9] != '':
+                instrain_dict[line.split()[0]] = float(line.split('\t')[9])
     for i in os.listdir(contig_folder):
         if not i.endswith('.fa'):
             continue
@@ -7630,12 +7631,20 @@ def create_main_page(outfile, fasta, checkm_file, contig_folder, long_bam, short
                     ctgs.append(ctg_name)
         length_list = []
         microd = 0
+        lenmicrod = 0
         for j in ctgs:
             length_list.append(len_dict[j])
-            microd += len_dict[j] * instrain_dict[j]
+            if j in instrain_dict:
+                microd += len_dict[j] * instrain_dict[j]
+                lenmicrod += len_dict[j]
+            else:
+                instrain_dict[j] = 'n/a'
         max_contig = max(length_list)
         bases_assembled = sum(length_list)
-        microd = microd / bases_assembled
+        if lenmicrod != 0:
+            microd = str(microd / lenmicrod)
+        else:
+            microd = 'n/a'
         length_list.sort(reverse=True)
         y = 0
         for j in length_list:
@@ -7737,7 +7746,6 @@ def create_bin_page(headers, bin_details, ctg_details, outfile, bin_list, long_q
 
 
 
-    # create table with contig/coverage long/ coverage short/length/mash hit?
 
 
 
@@ -7750,7 +7758,7 @@ short_html = snakemake.input.short_reads_qc_html[4:]
 gff_file = snakemake.input.genes_gff
 gtdbtk_dir = snakemake.input.gtdbtk_done[:-4]
 busco_dir = snakemake.input.busco_done[:-4]
-strain_profile = snakemake.input.strain_profile
+instrain_file = snakemake.input.strain_profile
 try:
     os.makedirs('www/bin')
 except FileExistsError:
@@ -7772,4 +7780,4 @@ else:
     short_bam = None
 
 
-create_main_page("www/index.html", fasta, checkm_file, contig_folder, long_bam, short_bam, gff_file, long_html, short_html, gtdbtk_dir, busco_dir, strain_profile)
+create_main_page("www/index.html", fasta, checkm_file, contig_folder, long_bam, short_bam, gff_file, long_html, short_html, gtdbtk_dir, busco_dir, instrain_file)
