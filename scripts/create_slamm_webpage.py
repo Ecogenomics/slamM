@@ -7661,9 +7661,14 @@ def create_main_page(outfile, fasta, checkm_file, contig_folder, long_bam, short
         coding = 0
         noncoding = 0
         for ctg in ctgs:
-            gene_sizes += gene_size_dict[ctg]
-            coding += sum(gene_size_dict[ctg])
-            noncoding += len_dict[ctg] - sum(gene_size_dict[ctg])
+            if ctg in gene_size_dict:
+                gene_sizes += gene_size_dict[ctg]
+                coding += sum(gene_size_dict[ctg])
+                noncoding += len_dict[ctg] - sum(gene_size_dict[ctg])
+            else:
+                gene_sizes += [0]
+                coding += 0
+                noncoding += len_dict[ctg]
             cov_forward, cov_reverse, trimmed_starts, trimmed_ends, starts_in, ends_ind, x = get_cov_stats_long(long_bam, ctg)
             coverage_long = (sum(cov_forward) + sum(cov_reverse)) / len(cov_forward)
             bases_sequenced_long += coverage_long * len_dict[ctg]
@@ -7681,7 +7686,7 @@ def create_main_page(outfile, fasta, checkm_file, contig_folder, long_bam, short
         gene_average = numpy.average(gene_sizes)
         gene_std = numpy.std(gene_sizes)
         gene_no = len(gene_sizes)
-        coding_percent = coding/(coding+noncoding)*100
+        coding_percent = coding/(coding+noncoding)*100 if coding != 0 else 0
         if short_bam is None:
             cov_dict[bin] = bases_sequenced_long/bases_assembled
         else:
