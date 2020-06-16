@@ -7600,6 +7600,8 @@ def create_main_page(outfile, fasta, checkm_file, contig_folder, long_bam, short
                 checkm_dict[bin_id] = [marker_lineage, completeness, contamination, heterogeneity]
     outlist = []
     bin_list = []
+    # FIXME : gene_size_dict can be missing contig entries due to incorrectly formatted or
+    # missing gff entries. Either add a check below or ensure gff file contains entries for all contigs.
     gene_size_dict = get_gene_sizes(gff_file)
     instrain_dict = {}
     with open(instrain_file) as f:
