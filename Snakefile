@@ -360,12 +360,14 @@ rule spades_assembly:
         fasta = "data/spades_assembly.fasta"
     threads:
          config["max_threads"]
+    params:
+         max_memory = config["max_memory"]
     conda:
         "envs/spades.yaml"
     shell:
         "minimumsize=500000 && actualsize=$(stat -c%s data/short_reads.filt.fastq.gz) && " \
         "if [ $actualsize -ge $minimumsize ]; then " \
-        "spades.py --meta --nanopore {input.long_reads} --12 {input.fastq} -o data/spades_assembly -t {threads} -k 21,33,55,81,99,127 && ln data/spades_assembly/scaffolds.fasta data/spades_assembly.fasta; " \
+        "spades.py --memory {params.max_memory} --meta --nanopore {input.long_reads} --12 {input.fastq} -o data/spades_assembly -t {threads} -k 21,33,55,81,99,127 && ln data/spades_assembly/scaffolds.fasta data/spades_assembly.fasta; " \
         "else touch {output.fasta}; fi"
 
 

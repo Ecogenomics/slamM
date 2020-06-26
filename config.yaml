@@ -10,6 +10,8 @@ short_reads_2:
     none
 max_threads:
     24
+max_memory:
+    250
 nanopore_dir:
     none
 guppy_model:
