@@ -695,12 +695,14 @@ rule instrain_long:
         fasta = "data/final_contigs.fasta"
     output:
         profile = "data/instrain/output/instrain_scaffold_info.tsv"
+    params:
+        instrain_params = config["instrain_params"]
     threads:
         config["max_threads"]
     conda:
         "envs/instrain.yaml"
     shell:
-        "inStrain profile --processes {threads} -o data/instrain {input.bam} {input.fasta}"
+        "inStrain profile {params.instrain_params} --processes {threads} -o data/instrain {input.bam} {input.fasta}"
 
 
 rule instrain:
@@ -709,12 +711,14 @@ rule instrain:
         fasta = "data/final_contigs.fasta"
     output:
         profile = "data/instrain/output/instrain_scaffold_info.tsv"
+    params:
+        instrain_params = config["instrain_params"]
     threads:
         config["max_threads"]
     conda:
         "envs/instrain.yaml"
     shell:
-        "inStrain profile --processes {threads} {input.bam} {input.fasta} -o data/instrain"
+        "inStrain profile {params.instrain_params} --processes {threads} {input.bam} {input.fasta} -o data/instrain"
 
 rule create_webpage:
     input:
