@@ -31,7 +31,7 @@ busco_folder:
 unassembled_long:
     none
 instrain_params:
-    none
+    ""
 profile_read_list:
     none
 pilon_memory:
