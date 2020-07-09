@@ -700,7 +700,7 @@ rule instrain_long:
     conda:
         "envs/instrain.yaml"
     shell:
-        "inStrain profile -o data/instrain {input.bam} {input.fasta}"
+        "inStrain profile --processes {threads} --skip_plot_generation False -o data/instrain {input.bam} {input.fasta}"
 
 
 rule instrain:
@@ -714,7 +714,7 @@ rule instrain:
     conda:
         "envs/instrain.yaml"
     shell:
-        "inStrain profile {input.bam} {input.fasta} -o data/instrain"
+        "inStrain profile --processes {threads} --skip_plot_generation False {input.bam} {input.fasta} -o data/instrain"
 
 rule create_webpage:
     input:
