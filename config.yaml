@@ -25,7 +25,7 @@ fastq_pass_dir:
 sequence_summary:
     none
 gtdbtk_folder:
-    /srv/db/gtdbtk/official/release89
+    /srv/db/gtdbtk/official/release95
 busco_folder:
     /srv/longreads/nanopore/busco
 unassembled_long:
