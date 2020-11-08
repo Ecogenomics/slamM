@@ -582,13 +582,13 @@ rule das_tool:
         config["max_threads"]
     shell:
         "Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_2 -e fa > data/metabat_bins_2.tsv && " \
-        "Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_sspec -e fa > data/metabta_bins_sspec.tsv && " \
-        "Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_ssens -e fa > data/metabta_bins_ssens.tsv && " \
-        "Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_sens -e fa > data/metabta_bins_sens.tsv && " \
+        "Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_sspec -e fa > data/metabat_bins_sspec.tsv && " \
+        "Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_ssens -e fa > data/metabat_bins_ssens.tsv && " \
+        "Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_sens -e fa > data/metabat_bins_sens.tsv && " \
         "Fasta_to_Scaffolds2Bin.sh -i data/concoct_bins -e fa > data/concoct_bins.tsv && " \
         "Fasta_to_Scaffolds2Bin.sh -i data/maxbin2_bins -e fasta > data/maxbin_bins.tsv && " \
         "DAS_Tool --search_engine diamond --write_bin_evals 1 --write_bins 1 -t {threads}" \
-        " -i data/metabat_bins_2.tsv,data/metabta_bins_sspec.tsv,data/metabta_bins_ssens.tsv,data/metabta_bins_sens.tsv,data/concoct_bins.tsv,data/maxbin_bins.tsv" \
+        " -i data/metabat_bins_2.tsv,data/metabat_bins_sspec.tsv,data/metabat_bins_ssens.tsv,data/metabat_bins_sens.tsv,data/concoct_bins.tsv,data/maxbin_bins.tsv" \
         " -c {input.fasta} -o data/das_tool_bins/das_tool && " \
         "touch data/das_tool_bins/done"
 
