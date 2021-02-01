@@ -2,6 +2,6 @@ channels:
   - bioconda
   - conda-forge
 dependencies:
-  - spades >= 3.13.2
+  - spades >= 3.14.0
   - pyyaml
   - joblib

@@ -1,4 +1,4 @@
 channels:
   - bioconda
 dependencies:
-  - medaka = 1.0.1
+  - medaka = 1.2.1

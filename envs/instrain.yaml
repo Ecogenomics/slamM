@@ -1,4 +1,4 @@
 channels:
   - bioconda
 dependencies:
-  - instrain = 1.2.2
+  - instrain = 1.4.0
