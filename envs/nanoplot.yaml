@@ -1,6 +1,6 @@
 channels:
   - bioconda
 dependencies:
-  - decorator = 4.4.0
-  - nanoplot = 1.27.0
-  - requests = 2.22.0
+  - nanoplot = 1.30.0
+  - seaborn-base = 0.10.1
+  - seaborn = 0.10.1
