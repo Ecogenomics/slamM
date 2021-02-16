@@ -683,10 +683,18 @@ rule busco:
         for file in ../das_tool_bins/das_tool_DASTool_bins/*.fa;do 
             actualsize=$(wc -c <\"$file\"); 
             if [ $actualsize -ge $minimumsize ]; then 
-                busco -q -c {threads} -i $file -o bacteria_odb10.${{file:39:-3}} -l {params.busco_folder}/bacteria_odb10 -m geno; 
+                if [ ! -d bacteria_odb10.${{file:39:-3}} ]; then
+                    busco -q -c {threads} -i $file -o bacteria_odb10.${{file:39:-3}} -l {params.busco_folder}/bacteria_odb10 -m geno;
+                fi
+                if [ ! -d eukaryota_odb10.${{file:39:-3}} ]; then
                 busco -q -c {threads} -i $file -o eukaryota_odb10.${{file:39:-3}} -l {params.busco_folder}/eukaryota_odb10 -m geno; 
+                fi
+                if [ ! -d embryophyta_odb10.${{file:39:-3}} ]; then
                 busco -q -c {threads} -i $file -o embryophyta_odb10.${{file:39:-3}} -l {params.busco_folder}/embryophyta_odb10 -m geno; 
+                fi
+                if [ ! -d fungi_odb10.${{file:39:-3}} ]; then
                 busco -q -c {threads} -i $file -o fungi_odb10.${{file:39:-3}} -l {params.busco_folder}/fungi_odb10 -m geno; 
+                fi 
                 # busco -q -c {threads} -i $file -o metazoa_odb10.${{file:39:-3}} -l {params.busco_folder}/metazoa_odb10 -m geno; 
                 # busco -q -c {threads} -i $file -o protists_ensembl.${{file:39:-3}} -l {params.busco_folder}/protists_ensembl -m geno; 
             fi
