@@ -688,7 +688,7 @@ rule busco:
                 busco -q -c {threads} -i $file -o embryophyta_odb10.${{file:39:-3}} -l {params.busco_folder}/embryophyta_odb10 -m geno; 
                 busco -q -c {threads} -i $file -o fungi_odb10.${{file:39:-3}} -l {params.busco_folder}/fungi_odb10 -m geno; 
                 # busco -q -c {threads} -i $file -o metazoa_odb10.${{file:39:-3}} -l {params.busco_folder}/metazoa_odb10 -m geno; 
-                busco -q -c {threads} -i $file -o protists_ensembl.${{file:39:-3}} -l {params.busco_folder}/protists_ensembl -m geno; 
+                # busco -q -c {threads} -i $file -o protists_ensembl.${{file:39:-3}} -l {params.busco_folder}/protists_ensembl -m geno; 
             fi
         done 
         cd ../../
