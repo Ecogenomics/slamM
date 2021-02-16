@@ -380,6 +380,8 @@ rule metabat_binning_short:
          bam = "data/short_vs_mega.bam"
     conda:
          "envs/metabat2.yaml"
+    threads:
+         config["max_threads"]
     shell:
          "minimap2 -ax sr -t {threads} {input.fasta} {input.fastq} |  samtools view -b | "\
          "samtools sort -o data/short_vs_mega.bam - && samtools index {output.bam} && "\
