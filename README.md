@@ -41,11 +41,11 @@ $ git clone https://github.com/Ecogenomics/slamM.git
 The easiest way to use snakemake is to pass configuration options straight from the shell
 
 ```
-$ cd <install_directory>/SDMass
+$ cd <install_directory>/slamm
 $ snakemake assemble_pools --cores 24 --use-conda --config long_reads=nanopore_reads.fastq short_reads_1=illumina.1.fastq short_reads_2=illumina.2.fastq workdir=/path/to/output/files/ 
 ```
 
-If only _short_reads_1_ is given SDMass will assume that the fastq is interleaved paired-end reads
+If only _short_reads_1_ is given slamM will assume that the fastq is interleaved paired-end reads
 
 Alternatively you can edit config.yaml to point to reads and directory and then run
 

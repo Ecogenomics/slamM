@@ -583,16 +583,19 @@ rule das_tool:
     threads:
         config["max_threads"]
     shell:
-        "Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_2 -e fa > data/metabat_bins_2.tsv && " \
-        "Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_sspec -e fa > data/metabat_bins_sspec.tsv && " \
-        "Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_ssens -e fa > data/metabat_bins_ssens.tsv && " \
-        "Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_sens -e fa > data/metabat_bins_sens.tsv && " \
-        "Fasta_to_Scaffolds2Bin.sh -i data/concoct_bins -e fa > data/concoct_bins.tsv && " \
-        "Fasta_to_Scaffolds2Bin.sh -i data/maxbin2_bins -e fasta > data/maxbin_bins.tsv && " \
-        "DAS_Tool --search_engine diamond --write_bin_evals 1 --write_bins 1 -t {threads}" \
-        " -i data/metabat_bins_2.tsv,data/metabat_bins_sspec.tsv,data/metabat_bins_ssens.tsv,data/metabat_bins_sens.tsv,data/concoct_bins.tsv,data/maxbin_bins.tsv" \
-        " -c {input.fasta} -o data/das_tool_bins/das_tool && " \
-        "touch data/das_tool_bins/done"
+        """
+        Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_2 -e fa > data/metabat_bins_2.tsv
+        Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_sspec -e fa > data/metabat_bins_sspec.tsv 
+        Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_ssens -e fa > data/metabat_bins_ssens.tsv 
+        Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_sens -e fa > data/metabat_bins_sens.tsv
+        Fasta_to_Scaffolds2Bin.sh -i data/concoct_bins -e fa > data/concoct_bins.tsv
+        Fasta_to_Scaffolds2Bin.sh -i data/maxbin2_bins -e fasta > data/maxbin_bins.tsv 
+        DAS_Tool --search_engine diamond --write_bin_evals 1 --write_bins 1 -t {threads}
+        -i data/metabat_bins_2.tsv,data/metabat_bins_sspec.tsv,data/metabat_bins_ssens.tsv,data/metabat_bins_sens.tsv,data/concoct_bins.tsv,data/maxbin_bins.tsv \
+        -c {input.fasta} -o data/das_tool_bins/das_tool
+        touch data/das_tool_bins/done"
+        """
+
 
 
 rule checkm:
@@ -662,8 +665,13 @@ rule gtdbtk:
     threads:
         config["max_threads"]
     shell:
-        "export GTDBTK_DATA_PATH={params.gtdbtk_folder} && " \
-        "gtdbtk classify_wf --cpus {threads} --extension fa --genome_dir data/das_tool_bins/das_tool_DASTool_bins --out_dir data/gtdbtk && touch data/gtdbtk/done"
+        """
+        export GTDBTK_DATA_PATH={params.gtdbtk_folder}
+        gtdbtk classify_wf --cpus {threads} --extension fa \
+        --genome_dir data/das_tool_bins/das_tool_DASTool_bins \
+        --out_dir data/gtdbtk
+        touch data/gtdbtk/done
+        """
 
 
 rule busco:
@@ -718,7 +726,9 @@ rule instrain_long:
     conda:
         "envs/instrain.yaml"
     shell:
-        "inStrain profile {params.instrain_params} --processes {threads} -o data/instrain {input.bam} {input.fasta}"
+        """
+        inStrain profile {params.instrain_params} --processes {threads} -o data/instrain {input.bam} {input.fasta}
+        """
 
 
 rule instrain:
@@ -734,7 +744,9 @@ rule instrain:
     conda:
         "envs/instrain.yaml"
     shell:
-        "inStrain profile {params.instrain_params} --processes {threads} {input.bam} {input.fasta} -o data/instrain"
+        """
+        inStrain profile {params.instrain_params} --processes {threads} {input.bam} {input.fasta} -o data/instrain
+        """
 
 rule create_webpage:
     input:
@@ -745,8 +757,8 @@ rule create_webpage:
         long_reads_qc_html = "www/nanoplot/longReadsNanoPlot-report.html",
         short_reads_qc_html = "www/short_reads_fastqc.html",
         genes_gff = "data/genes.gff",
-        gtdbtk_done = "data/gtdbtk/done",
-        strain_profile = "data/instrain/output/instrain_scaffold_info.tsv"
+        gtdbtk_done = "data/gtdbtk/done"
+        # strain_profile = "data/instrain/output/instrain_scaffold_info.tsv"
     output:
         "www/index.html"
     threads:
@@ -773,7 +785,11 @@ rule process_reads:
     params:
         fastq_pass = config["fastq_pass_dir"]
     shell:
-        "for file in {params.fastq_pass}/*; do cat $file/* | gzip > barcoded_reads/${{file##*/}}.fastq.gz ; done && touch {output}"
+        """
+        for file in {params.fastq_pass}/*; do cat $file/* | 
+        gzip > barcoded_reads/${{file##*/}}.fastq.gz
+        touch {output}
+        """
 
 
 
@@ -851,8 +867,10 @@ rule polish_isolate_medaka:
     output:
         fasta = "isolate/isolate.pol.med.fasta"
     shell:
-        "medaka_consensus -i {input.reads} -d {input.contigs} -o isolate/medaka/ -t {threads} -m {params.model} && " \
-        "cp isolate/medaka/consensus.fasta {output.fasta}"
+        """
+        medaka_consensus -i {input.reads} -d {input.contigs} -o isolate/medaka/ -t {threads} -m {params.model}
+        cp isolate/medaka/consensus.fasta {output.fasta}
+        """
 
 
 rule polish_isolate_pilon:
@@ -866,9 +884,12 @@ rule polish_isolate_pilon:
     conda:
         "envs/pilon.yaml"
     shell:
-        "minimap2 -ax sr -t {threads} {input.fasta} {input.reads} | samtools view -b | " \
-        "samtools sort -o isolate/pilon.sort.bam - && samtools index isolate/pilon.sort.bam && " \
-        "pilon -Xmx64000m --genome {input.fasta} --frags isolate/pilon.sort.bam --threads {threads} --output isolate/isolate.pol.pil --fix bases"
+        """
+        minimap2 -ax sr -t {threads} {input.fasta} {input.reads} | samtools view -b | 
+        samtools sort -o isolate/pilon.sort.bam - && samtools index isolate/pilon.sort.bam
+        pilon -Xmx64000m --genome {input.fasta} --frags isolate/pilon.sort.bam --threads {threads} \
+        --output isolate/isolate.pol.pil --fix bases
+        """
 
 
 rule polish_isolate_racon_ill:
@@ -910,5 +931,8 @@ rule circlator:
     conda:
         "envs/circlator.yaml"
     shell:
-        "circlator all {input.fasta} {input.reads} isolate/circlator && cp isolate/circlator/06.fixstart.fasta {output.fasta}"
+        """
+        circlator all {input.fasta} {input.reads} isolate/circlator 
+        cp isolate/circlator/06.fixstart.fasta {output.fasta}
+        """
 

@@ -1,6 +1,7 @@
 import os
 import pysam
 import numpy
+import glob
 
 
 
@@ -7557,16 +7558,17 @@ def get_busco(busco_folder):
     best_busco_dict = {}
     for busco_file in os.listdir(busco_folder):
         if os.path.isdir(os.path.join(busco_folder, busco_file)) and not '_tmp' in busco_file:
-           # bin = busco_file.split('.')[1]
+            # bin = busco_file.split('.')[1]
             bin = '.'.join(busco_file.split('.')[1:])
-            with open(os.path.join(busco_folder, busco_file, 'short_summary_%s.txt' % busco_file[4:])) as f:
-                for i in range(8):
+            summary_file = os.path.join(busco_folder, busco_file, glob.glob("short_summary*")[0])
+            with open(summary_file) as f:
+                for i in range(9):
                     line = f.readline()
-                    if i == 7:
+                    if i == 8:
                         busco_string = line.split()[0]
-            if busco_file.startswith('run_bacteria_odb9'):
+            if busco_file.startswith('run_bacteria_odb10'):
                 bac_busco_dict[bin] = busco_string
-            elif busco_file.startswith('run_eukaryota_odb9'):
+            elif busco_file.startswith('run_eukaryota_odb10'):
                 euk_busco_dict[bin] = busco_string
             else:
                 complete_b = float(busco_string.split(':')[1].split('%')[0])
@@ -7580,8 +7582,10 @@ def get_busco(busco_folder):
 
 
 
-
-def create_main_page(outfile, fasta, checkm_file, contig_folder, long_bam, short_bam, gff_file, long_qc_html, short_qc_html, gtdbtk_dir, busco_dir, instrain_file, min_contig_size=100000):
+# def create_main_page(outfile, fasta, checkm_file, contig_folder, long_bam, short_bam, gff_file,
+                     # long_qc_html, short_qc_html, gtdbtk_dir, busco_dir, instrain_file, min_contig_size=100000):
+def create_main_page(outfile, fasta, checkm_file, contig_folder, long_bam, short_bam, gff_file,
+                     long_qc_html, short_qc_html, gtdbtk_dir, busco_dir, min_contig_size=100000):
     with open(fasta) as f:
         len_dict = {}
         for line in f:
@@ -7604,11 +7608,11 @@ def create_main_page(outfile, fasta, checkm_file, contig_folder, long_bam, short
     # missing gff entries. Either add a check below or ensure gff file contains entries for all contigs.
     gene_size_dict = get_gene_sizes(gff_file)
     instrain_dict = {}
-    with open(instrain_file) as f:
-        f.readline()
-        for line in f:
-            if line.split('\t')[9] != '':
-                instrain_dict[line.split()[0]] = float(line.split('\t')[9])
+    # with open(instrain_file) as f:
+    #     f.readline()
+    #     for line in f:
+    #         if line.split('\t')[9] != '':
+    #             instrain_dict[line.split()[0]] = float(line.split('\t')[9])
     for i in os.listdir(contig_folder):
         if not i.endswith('.fa'):
             continue
@@ -7765,7 +7769,7 @@ short_html = snakemake.input.short_reads_qc_html[4:]
 gff_file = snakemake.input.genes_gff
 gtdbtk_dir = snakemake.input.gtdbtk_done[:-4]
 busco_dir = snakemake.input.busco_done[:-4]
-instrain_file = snakemake.input.strain_profile
+# instrain_file = snakemake.input.strain_profile
 try:
     os.makedirs('www/bin')
 except FileExistsError:
@@ -7787,4 +7791,7 @@ else:
     short_bam = None
 
 
-create_main_page("www/index.html", fasta, checkm_file, contig_folder, long_bam, short_bam, gff_file, long_html, short_html, gtdbtk_dir, busco_dir, instrain_file)
+# create_main_page("www/index.html", fasta, checkm_file, contig_folder, long_bam, short_bam,
+                 # gff_file, long_html, short_html, gtdbtk_dir, busco_dir, instrain_file)
+create_main_page("www/index.html", fasta, checkm_file, contig_folder, long_bam, short_bam,
+                 gff_file, long_html, short_html, gtdbtk_dir, busco_dir)
