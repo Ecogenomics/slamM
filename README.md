@@ -1,17 +1,16 @@
 # slamM
 
 ### Step-down metagenome assembler
-
-##### 
+ 
 This tool is no-longer being actively developed, though minor updates/bug-fixes may be made.
 For ACE users, it is recommended you use newer servers.
 
-### REQUIREMENTS
+### Requirements
 - snakemake (last tested with ver. 5.32.0)
 - miniconda (last tested with ver. 1.1)
 
 
-### INSTALLATION
+### Installation
 
 #### Install miniconda3 and snakemake (if required)
 ```
@@ -28,13 +27,12 @@ $ git clone https://github.com/Ecogenomics/slamM.git
 ```
 
 
-#### Usage
+### Usage
 
 The easiest way to use snakemake is to pass configuration options straight from the shell
 
 ```
 $ cd <install_directory>/slamm
-$ snakemake assemble_pools --cores 24 --use-conda --config long_reads=nanopore_reads.fastq short_reads_1=illumina.1.fastq short_reads_2=illumina.2.fastq workdir=/path/to/output/files/
 $ snakemake create_webpage --cores 24 --use-conda --config long_reads=nanopore_reads.fastq short_reads_1=illumina.1.fastq short_reads_2=illumina.2.fastq workdir=/path/to/output/files/
  
 ```
@@ -45,5 +43,5 @@ Alternatively you can edit config.yaml to point to reads and directory and then 
 
 
 ```
-$ snakemake assemble_pools --cores 12 --use-conda 
+$ snakemake create_webpage --cores 24 --use-conda 
 ```
