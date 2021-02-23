@@ -102,7 +102,6 @@ rule copy_reads:
             shell("cat {input.fastq} | gzip > {output}")
 
 
-
 rule flye_assembly:
     input:
         fastq = "data/long_reads.fastq.gz"
@@ -138,6 +137,7 @@ rule polish_metagenome_racon:
     script:
         "scripts/racon_polish.py"
 
+
 ### Steps if illumina data exists
 rule filter_illumina_ref:
     input:
@@ -152,8 +152,12 @@ rule filter_illumina_ref:
     threads:
          config["max_threads"]
     shell:
-        "minimap2 -ax sr -t {threads} {input.reference_filter} {input.fastq_1} {input.fastq_1}  | samtools view -b -f 12 > {output.bam} &&"\
-        "samtools bam2fq {output.bam} | gzip > {output.fastq}"
+        """
+        minimap2 -ax sr -t {threads} {input.reference_filter} {input.fastq_1} {input.fastq_1}  |
+        samtools view -b -f 12 > {output.bam} && \
+        samtools bam2fq {output.bam} | gzip > {output.fastq}
+        """
+
 
 rule filter_illumina_ref_interleaved:
     input:
@@ -167,8 +171,11 @@ rule filter_illumina_ref_interleaved:
     threads:
          config["max_threads"]
     shell:
-        "minimap2 -ax sr -t {threads} {input.reference_filter} {input.fastq_1} | samtools view -b -f 12 > {output.bam} &&"\
-        "samtools bam2fq {output.bam} | gzip > {output.fastq}"
+        """
+        minimap2 -ax sr -t {threads} {input.reference_filter} {input.fastq_1} | \
+        samtools view -b -f 12 > {output.bam} && \
+        samtools bam2fq {output.bam} | gzip > {output.fastq}
+        """
 
 
 # if no reference provided merge the short reads and copy ot working directory
@@ -182,8 +189,6 @@ rule ill_copy_reads:
         "envs/seqtk.yaml"
     shell:
         "rename.sh prefix=SLAM in={input.fastq_1} in2={input.fastq_2} out={output} addpairnum=f"
-
-
 
 
 rule ill_copy_reads_interleaved:
@@ -211,9 +216,13 @@ rule polish_meta_pilon:
     conda:
         "envs/pilon.yaml"
     shell:
-        "minimap2 -ax sr -t {threads} {input.fasta} {input.reads} | samtools view -b | " \
-        "samtools sort -o {output.bam} - && samtools index {output.bam} && " \
-        "pilon -Xmx{params.pilon_memory}000m --genome {input.fasta} --frags data/pilon.sort.bam --threads {threads} --output data/assembly.pol.pil --fix bases"
+        """
+        minimap2 -ax sr -t {threads} {input.fasta} {input.reads} | samtools view -b | 
+        samtools sort -o {output.bam} - && \
+        samtools index {output.bam} && \
+        pilon -Xmx{params.pilon_memory}000m --genome {input.fasta} --frags data/pilon.sort.bam \
+        --threads {threads} --output data/assembly.pol.pil --fix bases
+        """
 
 
 rule polish_meta_racon_ill:
@@ -310,8 +319,6 @@ rule get_high_cov_contigs:
                     o.write(line)
 
 
-
-
 # filter illumina reads against the nanopore assembly
 rule filter_illumina_assembly:
     input:
@@ -325,9 +332,12 @@ rule filter_illumina_assembly:
     threads:
          config["max_threads"]
     shell:
-        "minimap2 -ax sr -t {threads} {input.reference} {input.fastq} |  samtools view -b | "\
-        "samtools sort -o {output.bam} - && samtools index {output.bam} && "\
-        "samtools bam2fq -f 12 {output.bam} | gzip > {output.fastq}"
+        """
+        minimap2 -ax sr -t {threads} {input.reference} {input.fastq} |  samtools view -b |
+        samtools sort -o {output.bam} - && \
+        samtools index {output.bam} && \
+        samtools bam2fq -f 12 {output.bam} | gzip > {output.fastq}
+        """
 
 
 rule skip_long_assembly:
@@ -339,7 +349,11 @@ rule skip_long_assembly:
         fasta = "data/flye_high_cov.fasta",
         long_reads = "data/long_reads.fastq.gz"
     shell:
-        "ln {input.fastq} {output.fastq} && touch {output.fasta} && ln {input.unassembled_long} {output.long_reads}"
+        """
+        ln {input.fastq} {output.fastq} && \
+        touch {output.fasta} && \
+        ln {input.unassembled_long} {output.long_reads}
+        """
 
 rule short_only:
     input:
@@ -349,7 +363,11 @@ rule short_only:
         fasta = "data/flye_high_cov.fasta",
         long_reads = "data/long_reads.fastq.gz"
     shell:
-        "ln {input.fastq} {output.fastq} && touch {output.fasta} && touch {output.long_reads}"
+        """
+        ln {input.fastq} {output.fastq} && \
+        touch {output.fasta} && \
+        touch {output.long_reads}
+        """
 
 # assemble filtered illumina reads with spades
 rule spades_assembly:
@@ -365,10 +383,18 @@ rule spades_assembly:
     conda:
         "envs/spades.yaml"
     shell:
-        "minimumsize=500000 && actualsize=$(stat -c%s data/short_reads.filt.fastq.gz) && " \
-        "if [ $actualsize -ge $minimumsize ]; then " \
-        "spades.py --memory {params.max_memory} --meta --nanopore {input.long_reads} --12 {input.fastq} -o data/spades_assembly -t {threads} -k 21,33,55,81,99,127 && ln data/spades_assembly/scaffolds.fasta data/spades_assembly.fasta; " \
-        "else touch {output.fasta}; fi"
+        """
+        minimumsize=500000 && \
+        actualsize=$(stat -c%s data/short_reads.filt.fastq.gz) && \
+        if [ $actualsize -ge $minimumsize ]
+        then
+            spades.py --memory {params.max_memory} --meta --nanopore {input.long_reads} --12 {input.fastq} \
+            -o data/spades_assembly -t {threads} -k 21,33,55,81,99,127 && \
+            ln data/spades_assembly/scaffolds.fasta data/spades_assembly.fasta
+        else
+            touch {output.fasta}
+        fi 
+        """
 
 
 rule metabat_binning_short:
@@ -383,12 +409,17 @@ rule metabat_binning_short:
     threads:
          config["max_threads"]
     shell:
-         "minimap2 -ax sr -t {threads} {input.fasta} {input.fastq} |  samtools view -b | "\
-         "samtools sort -o data/short_vs_mega.bam - && samtools index {output.bam} && "\
-         "jgi_summarize_bam_contig_depths --outputDepth data/megahit.cov data/short_vs_mega.bam && " \
-         "mkdir -p data/metabat_bins && " \
-         "metabat --seed 89 --unbinned -m 1500 -l -i {input.fasta} -a data/megahit.cov -o data/metabat_bins/binned_contigs && " \
-         "touch data/metabat_bins/done"
+         """
+         minimap2 -ax sr -t {threads} {input.fasta} {input.fastq} |  samtools view -b | 
+         samtools sort -o data/short_vs_mega.bam - && \
+         samtools index {output.bam} && \
+         jgi_summarize_bam_contig_depths --outputDepth data/megahit.cov data/short_vs_mega.bam && \
+         mkdir -p data/metabat_bins && \
+         metabat --seed 89 --unbinned -m 1500 -l -i {input.fasta} -a data/megahit.cov \
+         -o data/metabat_bins/binned_contigs && \
+         touch data/metabat_bins/done
+         """
+
 
 rule map_long_mega:
     input:
@@ -401,8 +432,11 @@ rule map_long_mega:
     conda:
         "envs/minimap2.yaml"
     shell:
-        "minimap2 -t {threads} -ax map-ont -a {input.fasta} {input.fastq} |  samtools view -b | " \
-        "samtools sort -o {output.bam} - && samtools index {output.bam}"
+        """
+        minimap2 -t {threads} -ax map-ont -a {input.fasta} {input.fastq} |  samtools view -b |
+        samtools sort -o {output.bam} - && \
+        samtools index {output.bam}
+        """
 
 
 rule pool_reads:
@@ -436,7 +470,6 @@ rule get_read_pools:
          ' printf " --output-fastq-files "; for file in data/binned_reads/*.short.list; do printf "${{file:0:-5}}.2.fastq.gz "; done; printf "\n") && touch {output} || touch {output}'
 
 
-
 rule assemble_pools:
     input:
         fastq = "data/binned_reads/done",
@@ -449,8 +482,6 @@ rule assemble_pools:
         fasta = "data/unicycler_combined.fa"
     conda:
         "envs/final_assembly.yaml"
-    threads:
-        config["max_threads"]
     script:
         "scripts/assemble_pools.py"
 
@@ -470,11 +501,14 @@ rule combine_assemblies:
     threads:
         config["max_threads"]
     shell:
-        "cat {input.flye_fasta} {input.unicyc_fasta} > {output.fasta} && " \
-        "minimap2 -t {threads} -ax map-ont -a {output.fasta} {input.long_reads} |  samtools view -b | " \
-        "samtools sort -o {output.long_bam} - && samtools index {output.long_bam} && " \
-        "minimap2 -ax sr -t {threads} {output.fasta} {input.short_reads} |  samtools view -b | "\
-        "samtools sort -o {output.short_bam} - && samtools index {output.short_bam}"
+        """
+        cat {input.flye_fasta} {input.unicyc_fasta} > {output.fasta} && \
+        minimap2 -t {threads} -ax map-ont -a {output.fasta} {input.long_reads} |  samtools view -b | 
+        samtools sort -o {output.long_bam} - && samtools index {output.long_bam} && \
+        minimap2 -ax sr -t {threads} {output.fasta} {input.short_reads} |  samtools view -b |
+        samtools sort -o {output.short_bam} - && \
+        samtools index {output.short_bam}
+        """
 
 
 rule combine_long_only:
@@ -489,9 +523,13 @@ rule combine_long_only:
     threads:
         config["max_threads"]
     shell:
-        "minimap2 -t {threads} -ax map-ont -a {input.fasta} {input.long_reads} |  samtools view -b | " \
-        "samtools sort -o {output.bam} - && samtools index {output.bam} && " \
-        "ln {input.fasta} {output.fasta}"
+        """
+        minimap2 -t {threads} -ax map-ont -a {input.fasta} {input.long_reads} |  samtools view -b | 
+        samtools sort -o {output.bam} - && \
+        samtools index {output.bam} && \
+        ln {input.fasta} {output.fasta}
+        """
+
 
 rule prepare_binning_files:
     input:
@@ -518,9 +556,12 @@ rule maxbin_binning:
     conda:
         "envs/maxbin2.yaml"
     shell:
-        "mkdir -p data/maxbin2_bins && " \
-        "run_MaxBin.pl -contig {input.fasta} -abund_list {input.maxbin_cov} -out data/maxbin2_bins/maxbin && " \
-        "touch data/maxbin2_bins/done"
+        """
+        mkdir -p data/maxbin2_bins && \
+        run_MaxBin.pl -contig {input.fasta} -abund_list {input.maxbin_cov} -out data/maxbin2_bins/maxbin && \
+        touch data/maxbin2_bins/done
+        """
+
 
 
 rule concoct_binning:
@@ -534,14 +575,22 @@ rule concoct_binning:
     threads:
         config["max_threads"]
     shell:
-        "mkdir -p data/concoct_working && " \
-        "cut_up_fasta.py {input.fasta} -c 10000 -o 0 --merge_last -b data/concoct_working/contigs_10K.bed > data/concoct_working/contigs_10K.fa &&" \
-        "concoct_coverage_table.py data/concoct_working/contigs_10K.bed data/binning_bams/*.sort.bam > data/concoct_working/coverage_table.tsv &&" \
-        "concoct --threads {threads}  --composition_file data/concoct_working/contigs_10K.fa --coverage_file data/concoct_working/coverage_table.tsv -b data/concoct_working/ &&" \
-        "merge_cutup_clustering.py data/concoct_working/clustering_gt1000.csv > data/concoct_working/clustering_merged.csv &&" \
-        "mkdir -p data/concoct_bins &&" \
-        "extract_fasta_bins.py {input.fasta} data/concoct_working/clustering_merged.csv --output_path data/concoct_bins/ &&" \
-        "touch data/concoct_bins/done"
+        """
+        mkdir -p data/concoct_working && \
+        
+        cut_up_fasta.py {input.fasta} -c 10000 -o 0 --merge_last \
+        -b data/concoct_working/contigs_10K.bed > data/concoct_working/contigs_10K.fa && \
+        concoct_coverage_table.py data/concoct_working/contigs_10K.bed data/binning_bams/*.sort.bam \
+        > data/concoct_working/coverage_table.tsv && \
+        concoct --threads {threads}  --composition_file data/concoct_working/contigs_10K.fa \
+        --coverage_file data/concoct_working/coverage_table.tsv -b data/concoct_working/ && \  
+        merge_cutup_clustering.py data/concoct_working/clustering_gt1000.csv \
+        > data/concoct_working/clustering_merged.csv && \
+        mkdir -p data/concoct_bins && \
+        extract_fasta_bins.py {input.fasta} data/concoct_working/clustering_merged.csv \
+        --output_path data/concoct_bins/ && \ 
+        touch data/concoct_bins/done
+        """
 
 
 rule metabat_binning_2:
@@ -556,15 +605,20 @@ rule metabat_binning_2:
     conda:
         "envs/metabat2.yaml"
     shell:
-        "mkdir -p data/metabat_bins_2 && " \
-        "metabat --seed 89 -i {input.fasta} -a {input.coverage} -o data/metabat_bins_2/binned_contigs && " \
-        "touch data/metabat_bins_2/done && " \
-        "metabat1 --seed 89 --sensitive -i {input.fasta} -a {input.coverage} -o data/metabat_bins_sens/binned_contigs && " \
-        "touch data/metabat_bins_sens/done && " \
-        "metabat1 --seed 89 --supersensitive -i {input.fasta} -a {input.coverage} -o data/metabat_bins_ssens/binned_contigs && " \
-        "touch data/metabat_bins_ssens/done && " \
-        "metabat1 --seed 89 --superspecific -i {input.fasta} -a {input.coverage} -o data/metabat_bins_sspec/binned_contigs && " \
-        "touch data/metabat_bins_sspec/done"
+        """
+        mkdir -p data/metabat_bins_2 && \
+        metabat --seed 89 -i {input.fasta} -a {input.coverage} -o data/metabat_bins_2/binned_contigs && \
+        touch data/metabat_bins_2/done && \
+        metabat1 --seed 89 --sensitive -i {input.fasta} -a {input.coverage} \
+        -o data/metabat_bins_sens/binned_contigs && \
+        touch data/metabat_bins_sens/done && \
+        metabat1 --seed 89 --supersensitive -i {input.fasta} -a {input.coverage} \
+        -o data/metabat_bins_ssens/binned_contigs && \
+        touch data/metabat_bins_ssens/done && \
+        metabat1 --seed 89 --superspecific -i {input.fasta} -a {input.coverage} \
+        -o data/metabat_bins_sspec/binned_contigs && \
+        touch data/metabat_bins_sspec/done
+        """
 
 
 rule das_tool:
@@ -584,18 +638,19 @@ rule das_tool:
         config["max_threads"]
     shell:
         """
-        Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_2 -e fa > data/metabat_bins_2.tsv
-        Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_sspec -e fa > data/metabat_bins_sspec.tsv 
-        Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_ssens -e fa > data/metabat_bins_ssens.tsv 
-        Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_sens -e fa > data/metabat_bins_sens.tsv
-        Fasta_to_Scaffolds2Bin.sh -i data/concoct_bins -e fa > data/concoct_bins.tsv
-        Fasta_to_Scaffolds2Bin.sh -i data/maxbin2_bins -e fasta > data/maxbin_bins.tsv 
+        if [[ ! -f data/metabat_bins_2.tsv ]]; then
+        Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_2 -e fa > data/metabat_bins_2.tsv && \
+        Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_sspec -e fa > data/metabat_bins_sspec.tsv && \ 
+        Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_ssens -e fa > data/metabat_bins_ssens.tsv && \
+        Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_sens -e fa > data/metabat_bins_sens.tsv && \
+        Fasta_to_Scaffolds2Bin.sh -i data/concoct_bins -e fa > data/concoct_bins.tsv && \
+        Fasta_to_Scaffolds2Bin.sh -i data/maxbin2_bins -e fasta > data/maxbin_bins.tsv
+        fi
         DAS_Tool --search_engine diamond --write_bin_evals 1 --write_bins 1 -t {threads} \
         -i data/metabat_bins_2.tsv,data/metabat_bins_sspec.tsv,data/metabat_bins_ssens.tsv,data/metabat_bins_sens.tsv,data/concoct_bins.tsv,data/maxbin_bins.tsv \
-        -c {input.fasta} -o data/das_tool_bins/das_tool
+        -c {input.fasta} -o data/das_tool_bins/das_tool && \
         touch data/das_tool_bins/done"
         """
-
 
 
 rule checkm:
@@ -666,10 +721,10 @@ rule gtdbtk:
         config["max_threads"]
     shell:
         """
-        export GTDBTK_DATA_PATH={params.gtdbtk_folder}
+        export GTDBTK_DATA_PATH={params.gtdbtk_folder} && \
         gtdbtk classify_wf --cpus {threads} --extension fa \
         --genome_dir data/das_tool_bins/das_tool_DASTool_bins \
-        --out_dir data/gtdbtk
+        --out_dir data/gtdbtk && \
         touch data/gtdbtk/done
         """
 
@@ -687,31 +742,38 @@ rule busco:
         config["max_threads"]
     shell:
         """
-        mkdir -p data/busco
-        cd data/busco
-        minimumsize=500000
+        mkdir -p data/busco && \
+        cd data/busco && \
+        minimumsize=500000 && \
         for file in ../das_tool_bins/das_tool_DASTool_bins/*.fa;do 
             actualsize=$(wc -c <\"$file\"); 
             if [ $actualsize -ge $minimumsize ]; then 
                 if [ ! -d bacteria_odb10.${{file:39:-3}} ]; then
-                    busco -q -c {threads} -i $file -o bacteria_odb10.${{file:39:-3}} -l {params.busco_folder}/bacteria_odb10 -m geno;
+                    busco -q -c {threads} -i $file -o bacteria_odb10.${{file:39:-3}} \
+                    -l {params.busco_folder}/bacteria_odb10 -m geno;
                 fi
                 if [ ! -d eukaryota_odb10.${{file:39:-3}} ]; then
-                busco -q -c {threads} -i $file -o eukaryota_odb10.${{file:39:-3}} -l {params.busco_folder}/eukaryota_odb10 -m geno; 
+                busco -q -c {threads} -i $file -o eukaryota_odb10.${{file:39:-3}} \
+                -l {params.busco_folder}/eukaryota_odb10 -m geno; 
                 fi
                 if [ ! -d embryophyta_odb10.${{file:39:-3}} ]; then
-                busco -q -c {threads} -i $file -o embryophyta_odb10.${{file:39:-3}} -l {params.busco_folder}/embryophyta_odb10 -m geno; 
+                busco -q -c {threads} -i $file -o embryophyta_odb10.${{file:39:-3}} \
+                -l {params.busco_folder}/embryophyta_odb10 -m geno; 
                 fi
                 if [ ! -d fungi_odb10.${{file:39:-3}} ]; then
-                busco -q -c {threads} -i $file -o fungi_odb10.${{file:39:-3}} -l {params.busco_folder}/fungi_odb10 -m geno; 
+                busco -q -c {threads} -i $file -o fungi_odb10.${{file:39:-3}} \
+                -l {params.busco_folder}/fungi_odb10 -m geno; 
                 fi 
-                # busco -q -c {threads} -i $file -o metazoa_odb10.${{file:39:-3}} -l {params.busco_folder}/metazoa_odb10 -m geno; 
-                # busco -q -c {threads} -i $file -o protists_ensembl.${{file:39:-3}} -l {params.busco_folder}/protists_ensembl -m geno; 
+                # busco -q -c {threads} -i $file -o metazoa_odb10.${{file:39:-3}} \
+                -l {params.busco_folder}/metazoa_odb10 -m geno; 
+                # busco -q -c {threads} -i $file -o protists_ensembl.${{file:39:-3}} \
+                -l {params.busco_folder}/protists_ensembl -m geno; 
             fi
-        done 
-        cd ../../
+        done && \
+        cd ../../ && \
         touch data/busco/done
         """
+
 
 rule instrain_long:
     input:
@@ -773,7 +835,6 @@ rule create_webpage:
 # processing barcoded reads #
 #############################
 
-
 rule process_reads:
     input:
          html = "QC/read_qc.html",
@@ -786,11 +847,12 @@ rule process_reads:
         fastq_pass = config["fastq_pass_dir"]
     shell:
         """
-        for file in {params.fastq_pass}/*; do cat $file/* | 
-        gzip > barcoded_reads/${{file##*/}}.fastq.gz
+        for file in {params.fastq_pass}/*
+        do
+        cat $file/* | gzip > barcoded_reads/${{file##*/}}.fastq.gz
+        done && \
         touch {output}
         """
-
 
 
 rule read_qc:
@@ -812,7 +874,6 @@ rule read_velocity:
         "envs/matplotlib.yaml"
     script:
         "scripts/read_stats_long.py"
-
 
 
 ####################
@@ -868,7 +929,7 @@ rule polish_isolate_medaka:
         fasta = "isolate/isolate.pol.med.fasta"
     shell:
         """
-        medaka_consensus -i {input.reads} -d {input.contigs} -o isolate/medaka/ -t {threads} -m {params.model}
+        medaka_consensus -i {input.reads} -d {input.contigs} -o isolate/medaka/ -t {threads} -m {params.model} && \
         cp isolate/medaka/consensus.fasta {output.fasta}
         """
 
@@ -886,7 +947,8 @@ rule polish_isolate_pilon:
     shell:
         """
         minimap2 -ax sr -t {threads} {input.fasta} {input.reads} | samtools view -b | 
-        samtools sort -o isolate/pilon.sort.bam - && samtools index isolate/pilon.sort.bam
+        samtools sort -o isolate/pilon.sort.bam - && \
+        samtools index isolate/pilon.sort.bam && \
         pilon -Xmx64000m --genome {input.fasta} --frags isolate/pilon.sort.bam --threads {threads} \
         --output isolate/isolate.pol.pil --fix bases
         """
@@ -932,7 +994,7 @@ rule circlator:
         "envs/circlator.yaml"
     shell:
         """
-        circlator all {input.fasta} {input.reads} isolate/circlator 
+        circlator all {input.fasta} {input.reads} isolate/circlator && \ 
         cp isolate/circlator/06.fixstart.fasta {output.fasta}
         """
 
