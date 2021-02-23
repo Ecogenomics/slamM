@@ -1,8 +1,8 @@
 # slamM
 
-### Step-down metagenome assembler
+### A 'step-down' hybrid metagenome assembly pipeline
  
-This tool is no-longer being actively developed, though minor updates/bug-fixes may be made.
+slamM is no-longer being receiving major updates, though minor updates/bug-fixes may be made.
 For ACE users, it is recommended you use newer servers.
 
 ### Requirements
