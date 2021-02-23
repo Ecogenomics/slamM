@@ -11,7 +11,6 @@ ruleorder: combine_assemblies > combine_long_only
 ruleorder: instrain > instrain_long
 ruleorder: skip_long_assembly > get_high_cov_contigs > short_only
 ruleorder: skip_long_assembly > filter_illumina_assembly
-# Filter reads against a reference (i.e. for removing host contamination of the metagenome)
 
 
 onsuccess:
@@ -47,7 +46,7 @@ onstart:
         sys.stderr.write("busco_folder does not point to a folder\n")
 
 
-
+# Filter reads against a reference, i.e. for removing host contamination from the metagenome
 rule map_reads_ref:
     input:
         fastq = config["long_reads"],
@@ -59,10 +58,10 @@ rule map_reads_ref:
     threads:
          config["max_threads"]
     shell:
-        "minimap2 -ax map-ont -t {threads} {input.reference_filter} {input.fastq}  | samtools view -b  > {output}"
+        "minimap2 -ax map-ont -t {threads} {input.reference_filter} {input.fastq} | samtools view -b  > {output}"
 
 
-# get list of reads that don't map to genome you want to filter
+# Get a list of reads that don't map to genome you want to filter
 rule get_umapped_reads_ref:
     input:
         "data/raw_mapped_ref.bam"
@@ -76,7 +75,7 @@ rule get_umapped_reads_ref:
         "scripts/filter_read_list.py"
 
 
-# create new read file with filtered reads
+# Create new read file with filtered reads
 rule get_reads_list_ref:
     input:
         fastq = config["long_reads"],
@@ -89,7 +88,7 @@ rule get_reads_list_ref:
         "seqtk subseq {input.fastq} {input.list} | gzip > {output}"
 
 
-# if you don't want to filter the reads using a genome just copy them into the folder
+# If you don't want to filter the reads using a genome just copy them into the folder
 rule copy_reads:
     input:
         fastq = config["long_reads"],
@@ -101,7 +100,7 @@ rule copy_reads:
         else:
             shell("cat {input.fastq} | gzip > {output}")
 
-
+# Assembly long reads with metaflye
 rule flye_assembly:
     input:
         fastq = "data/long_reads.fastq.gz"
@@ -118,7 +117,7 @@ rule flye_assembly:
     shell:
         "flye --nano-raw {input.fastq} --meta -o data/flye -t {threads} -g {params.genome_size}"
 
-
+# Polish the long reads assembly with Racon
 rule polish_metagenome_racon:
     input:
         fastq = "data/long_reads.fastq.gz",
@@ -178,7 +177,7 @@ rule filter_illumina_ref_interleaved:
         """
 
 
-# if no reference provided merge the short reads and copy ot working directory
+# If no reference provided merge the short reads and copy to working directory
 rule ill_copy_reads:
     input:
         fastq_1 = config["short_reads_1"],
@@ -201,7 +200,7 @@ rule ill_copy_reads_interleaved:
     shell:
         "rename.sh prefix=SLAM in={input.fastq_1} out={output} addpairnum=f int=t"
 
-
+# The racon polished long read assembly is polished again with the short reads using Pilon
 rule polish_meta_pilon:
     input:
         reads = "data/short_reads.fastq.gz",
@@ -224,7 +223,7 @@ rule polish_meta_pilon:
         --threads {threads} --output data/assembly.pol.pil --fix bases
         """
 
-
+# The assembly polished with Racon and Pilon is polished again with the short reads using Racon
 rule polish_meta_racon_ill:
     input:
         fastq = "data/short_reads.fastq.gz",
@@ -244,7 +243,7 @@ rule polish_meta_racon_ill:
     script:
         "scripts/racon_polish.py"
 
-
+# High coverage contigs are identified
 rule get_high_cov_contigs:
     input:
         info = "data/flye/assembly_info.txt",
@@ -319,7 +318,8 @@ rule get_high_cov_contigs:
                     o.write(line)
 
 
-# filter illumina reads against the nanopore assembly
+# Illumina reads are filtered against the nanopore assembly.
+# Specifically, short reads that do not map to the high coverage long contigs are collected
 rule filter_illumina_assembly:
     input:
         reference = "data/flye_high_cov.fasta",
@@ -339,7 +339,7 @@ rule filter_illumina_assembly:
         samtools bam2fq -f 12 {output.bam} | gzip > {output.fastq}
         """
 
-
+# If unassembled long reads are provided, skip the long read assembly
 rule skip_long_assembly:
     input:
         fastq = "data/short_reads.fastq.gz",
@@ -355,6 +355,7 @@ rule skip_long_assembly:
         ln {input.unassembled_long} {output.long_reads}
         """
 
+# If only short reads are provided
 rule short_only:
     input:
         fastq = "data/short_reads.fastq.gz"
@@ -369,7 +370,8 @@ rule short_only:
         touch {output.long_reads}
         """
 
-# assemble filtered illumina reads with spades
+# Short reads that did not map to the long read assembly are hybrid assembled with metaspades
+# If no long reads were provided, long_reads.fastq.gz will be empty
 rule spades_assembly:
     input:
         fastq = "data/short_reads.filt.fastq.gz",
@@ -396,7 +398,8 @@ rule spades_assembly:
         fi 
         """
 
-
+# Short reads are mapped to the spades assembly and jgi_summarize_bam_contig_depths from metabat
+# used to calculate the mean coverage of the contigs. The coverage and assembly are then used to bin with metabat.
 rule metabat_binning_short:
     input:
          fastq = "data/short_reads.filt.fastq.gz",
@@ -420,7 +423,7 @@ rule metabat_binning_short:
          touch data/metabat_bins/done
          """
 
-
+# Long reads are mapped to the spades assembly
 rule map_long_mega:
     input:
         fastq = "data/long_reads.fastq.gz",
@@ -438,7 +441,7 @@ rule map_long_mega:
         samtools index {output.bam}
         """
 
-
+# Long and short reads that mapped to the spades assembly are pooled (binned) together
 rule pool_reads:
     input:
         long_bam = "data/long_vs_mega.bam",
@@ -451,7 +454,7 @@ rule pool_reads:
     script:
         "scripts/pool_reads.py"
 
-
+# Binned read lists are processed to extract the reads associated with each bin
 rule get_read_pools:
     input:
         long_reads = "data/long_reads.fastq.gz",
@@ -469,7 +472,7 @@ rule get_read_pools:
          'eval $(printf "seqtk seq -2 {input.short_reads} | mfqe --fastq-read-name-lists "; for file in data/binned_reads/*.short.list; do printf "$file "; done;'\
          ' printf " --output-fastq-files "; for file in data/binned_reads/*.short.list; do printf "${{file:0:-5}}.2.fastq.gz "; done; printf "\n") && touch {output} || touch {output}'
 
-
+# Short and long reads for each bin are hybrid assembled with Unicycler
 rule assemble_pools:
     input:
         fastq = "data/binned_reads/done",
@@ -485,7 +488,8 @@ rule assemble_pools:
     script:
         "scripts/assemble_pools.py"
 
-
+# The long read high coverage assembly from flye and hybrid assembly from unicycler are combined.
+# Long and short reads are mapped to this combined assembly.
 rule combine_assemblies:
     input:
         short_reads = "data/short_reads.fastq.gz",
@@ -530,7 +534,8 @@ rule combine_long_only:
         ln {input.fasta} {output.fasta}
         """
 
-
+# jgi_summarize_bam_contig_depths from metabat is used to calculate the coverage of each final contig.
+# Only reads with at least an identity of 70% are considered
 rule prepare_binning_files:
     input:
         long_reads = "data/long_reads.fastq.gz",
@@ -546,7 +551,7 @@ rule prepare_binning_files:
     script:
         "scripts/get_coverage.py"
 
-
+# Bin contigs with maxbin
 rule maxbin_binning:
     input:
         fasta = "data/final_contigs.fasta",
@@ -562,8 +567,7 @@ rule maxbin_binning:
         touch data/maxbin2_bins/done
         """
 
-
-
+# Bin contigs with CONCOCT
 rule concoct_binning:
     input:
         fasta = "data/final_contigs.fasta",
@@ -577,7 +581,6 @@ rule concoct_binning:
     shell:
         """
         mkdir -p data/concoct_working && \
-        
         cut_up_fasta.py {input.fasta} -c 10000 -o 0 --merge_last \
         -b data/concoct_working/contigs_10K.bed > data/concoct_working/contigs_10K.fa && \
         concoct_coverage_table.py data/concoct_working/contigs_10K.bed data/binning_bams/*.sort.bam \
@@ -592,7 +595,7 @@ rule concoct_binning:
         touch data/concoct_bins/done
         """
 
-
+# Bin contigs with metabat in various modes
 rule metabat_binning_2:
     input:
         coverage = "data/metabat.cov",
@@ -620,7 +623,7 @@ rule metabat_binning_2:
         touch data/metabat_bins_sspec/done
         """
 
-
+# DASTool is used to select an optimal, non-redundant set of bins
 rule das_tool:
     input:
         fasta = "data/final_contigs.fasta",
@@ -653,7 +656,7 @@ rule das_tool:
         touch data/das_tool_bins/done
         """
 
-
+# CheckM is used to evaluate the quality of the bins
 rule checkm:
     input:
         "data/das_tool_bins/done"
@@ -708,7 +711,7 @@ rule prodigal:
     shell:
         "prodigal -i {input.fasta} -f gff -o {output} -p meta"
 
-
+# CheckM is used to assign a taxonomy to each bin
 rule gtdbtk:
     input:
         "data/das_tool_bins/done"
@@ -729,7 +732,7 @@ rule gtdbtk:
         touch data/gtdbtk/done
         """
 
-
+# Run BUSCO on the bins
 rule busco:
     input:
         "data/das_tool_bins/done"
@@ -811,6 +814,7 @@ rule instrain:
         inStrain profile {params.instrain_params} --processes {threads} {input.bam} {input.fasta} -o data/instrain
         """
 
+# Create summary webpage
 rule create_webpage:
     input:
         checkm_file = "data/checkm.out",
