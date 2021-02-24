@@ -15,7 +15,7 @@ max_memory:
 nanopore_dir:
     none
 guppy_model:
-    r941_flip235
+    r941_min_high_g360
 genome_size:
     5000000
 meta_genome_size:
