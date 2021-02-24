@@ -662,6 +662,7 @@ rule checkm:
         "data/das_tool_bins/done"
     output:
         "data/checkm.out"
+    priority: 1
     conda:
         "envs/checkm.yaml"
     threads:
@@ -711,12 +712,13 @@ rule prodigal:
     shell:
         "prodigal -i {input.fasta} -f gff -o {output} -p meta"
 
-# CheckM is used to assign a taxonomy to each bin
+# GTDB-Tk is used to assign a taxonomy to each bin
 rule gtdbtk:
     input:
         "data/das_tool_bins/done"
     output:
         done = "data/gtdbtk/done"
+    priority: 1
     params:
         gtdbtk_folder = config['gtdbtk_folder']
     conda:
