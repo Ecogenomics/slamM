@@ -7557,15 +7557,17 @@ def get_busco(busco_folder):
     euk_busco_dict = {}
     best_busco_dict = {}
     for busco_file in os.listdir(busco_folder):
-        if os.path.isdir(os.path.join(busco_folder, busco_file)) and not '_tmp' in busco_file:
+        b_path=os.path.join(busco_folder, busco_file)
+        if os.path.isdir(b_path) and not '_tmp' in busco_file:
             # bin = busco_file.split('.')[1]
             bin = '.'.join(busco_file.split('.')[1:])
-            summary_file = os.path.join(busco_folder, busco_file, glob.glob("short_summary*")[0])
-            with open(summary_file) as f:
-                for i in range(9):
-                    line = f.readline()
-                    if i == 8:
-                        busco_string = line.split()[0]
+            summary_file_path=glob.glob(os.path.join(b_path, "short_summary*"))
+            if len(summary_file_path) == 1:
+                with open(summary_file_path[0]) as f:
+                    for i in range(9):
+                        line = f.readline()
+                        if i == 8:
+                            busco_string = line.split()[0]
             if busco_file.startswith('run_bacteria_odb10'):
                 bac_busco_dict[bin] = busco_string
             elif busco_file.startswith('run_eukaryota_odb10'):
