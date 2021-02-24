@@ -171,7 +171,7 @@ rule filter_illumina_ref_interleaved:
          config["max_threads"]
     shell:
         """
-        minimap2 -ax sr -t {threads} {input.reference_filter} {input.fastq_1} | \
+        minimap2 -ax sr -t {threads} {input.reference_filter} {input.fastq_1} |
         samtools view -b -f 12 > {output.bam} && \
         samtools bam2fq {output.bam} | gzip > {output.fastq}
         """
