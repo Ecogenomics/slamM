@@ -6483,7 +6483,7 @@ header {
   padding: 0 30px 15px; }
 
 header h1 {
-  color: #fff;
+  color: #2d1927;
   font-size: 2.5rem;
   text-align: left;
   line-height: 2.5rem;
@@ -6491,7 +6491,7 @@ header h1 {
   margin-bottom: 0; }
 
 header h1 span {
-  color: #2d1927; }
+  color: #fff; }
 
 .sidebar-social-icons {
   margin-top: 20px; }
@@ -6754,13 +6754,13 @@ def create_header(bin_list, directory, active, long_read_qc_html, short_read_qc_
             <div class="navbar-expand-md navbar-dark"> 
             
                 <header class="d-none d-md-block">
-                    <h1><span>SD</span>Mass</h1>
+                    <h1><span>slam</span>M</h1>
                 </header>
                 
                 
                 <!-- Mobile menu toggle and header -->
                 <div class="mobile-header-controls">
-                    <a class="navbar-brand d-md-none d-lg-none d-xl-none" href="#"><span>SD</span>Mass</a>
+                    <a class="navbar-brand d-md-none d-lg-none d-xl-none" href="#"><span>slam</span>M</a>
                     <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#SidebarContent" aria-controls="SidebarContent" aria-expanded="false" aria-label="Toggle navigation">
                         <span class="navbar-toggler-icon"></span>
                     </button>
