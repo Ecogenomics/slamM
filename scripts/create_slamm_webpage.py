@@ -7568,13 +7568,14 @@ def get_busco(busco_folder):
                         line = f.readline()
                         if i == 8:
                             busco_string = line.split()[0]
-            if busco_file.startswith('run_bacteria_odb10'):
+            if busco_file.startswith('bacteria_odb10'):
                 bac_busco_dict[bin] = busco_string
-            elif busco_file.startswith('run_eukaryota_odb10'):
+            elif busco_file.startswith('eukaryota_odb10'):
                 euk_busco_dict[bin] = busco_string
             else:
                 complete_b = float(busco_string.split(':')[1].split('%')[0])
-                kingdom = busco_file.split('.')[0][4:]
+                # TODO confirm this works? Used to cut off name in bin_summary.tsv, e.g. eria_odb10 should be bacteria_odb10
+                kingdom = busco_file.split('.')[0]
                 if bin in best_busco_dict:
                     if complete_b > best_busco_dict[bin][2]:
                         best_busco_dict[bin] = (kingdom, busco_string, complete_b)
