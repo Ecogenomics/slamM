@@ -586,12 +586,12 @@ rule concoct_binning:
         concoct_coverage_table.py data/concoct_working/contigs_10K.bed data/binning_bams/*.sort.bam \
         > data/concoct_working/coverage_table.tsv && \
         concoct --threads {threads}  --composition_file data/concoct_working/contigs_10K.fa \
-        --coverage_file data/concoct_working/coverage_table.tsv -b data/concoct_working/ && \  
+        --coverage_file data/concoct_working/coverage_table.tsv -b data/concoct_working/ && \
         merge_cutup_clustering.py data/concoct_working/clustering_gt1000.csv \
         > data/concoct_working/clustering_merged.csv && \
         mkdir -p data/concoct_bins && \
         extract_fasta_bins.py {input.fasta} data/concoct_working/clustering_merged.csv \
-        --output_path data/concoct_bins/ && \ 
+        --output_path data/concoct_bins/ && \
         touch data/concoct_bins/done
         """
 
@@ -644,7 +644,7 @@ rule das_tool:
         if [[ ! -f data/metabat_bins_2.tsv ]]
         then
             Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_2 -e fa > data/metabat_bins_2.tsv && \
-            Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_sspec -e fa > data/metabat_bins_sspec.tsv && \ 
+            Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_sspec -e fa > data/metabat_bins_sspec.tsv && \
             Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_ssens -e fa > data/metabat_bins_ssens.tsv && \
             Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_sens -e fa > data/metabat_bins_sens.tsv && \
             Fasta_to_Scaffolds2Bin.sh -i data/concoct_bins -e fa > data/concoct_bins.tsv && \
@@ -1001,7 +1001,7 @@ rule circlator:
         "envs/circlator.yaml"
     shell:
         """
-        circlator all {input.fasta} {input.reads} isolate/circlator && \ 
+        circlator all {input.fasta} {input.reads} isolate/circlator && \
         cp isolate/circlator/06.fixstart.fasta {output.fasta}
         """
 
