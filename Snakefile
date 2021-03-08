@@ -641,7 +641,7 @@ rule das_tool:
         config["max_threads"]
     shell:
         """
-        if [[ ! -f data/metabat_bins_2.tsv ]]
+        if [[ ! -f data/maxbin_bins.tsv ]]
         then
             Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_2 -e fa > data/metabat_bins_2.tsv && \
             Fasta_to_Scaffolds2Bin.sh -i data/metabat_bins_sspec -e fa > data/metabat_bins_sspec.tsv && \
