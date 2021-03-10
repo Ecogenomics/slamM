@@ -502,6 +502,7 @@ rule combine_assemblies:
         long_bam = "data/final_long.sort.bam"
     conda:
         "envs/metabat2.yaml"
+    priority: 1
     threads:
         config["max_threads"]
     shell:
@@ -521,7 +522,8 @@ rule combine_long_only:
         fasta = "data/assembly.pol.rac.fasta"
     output:
         fasta = "data/final_contigs.fasta",
-        bam = "data/final_long.sort.bam",
+        bam = "data/final_long.sort.bam"
+    priority: 1
     conda:
         "envs/metabat2.yaml"
     threads:
@@ -662,7 +664,7 @@ rule checkm:
         "data/das_tool_bins/done"
     output:
         "data/checkm.out"
-    priority: 1
+    priority: 2
     conda:
         "envs/checkm.yaml"
     threads:
@@ -718,7 +720,7 @@ rule gtdbtk:
         "data/das_tool_bins/done"
     output:
         done = "data/gtdbtk/done"
-    priority: 1
+    priority: 2
     params:
         gtdbtk_folder = config['gtdbtk_folder']
     conda:
